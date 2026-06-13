@@ -7,7 +7,7 @@ from typing import Optional
 from celery.result import AsyncResult
 
 from app.models.database import get_db
-from app.models.models import Model, ModelFile, Tag, ModelTag, User
+from app.models.models import Model, ModelFile, Tag, ModelTag, User, Collection, CollectionModel
 from app.tasks.celery_app import celery_app
 from app.scrapers.detect import detect_platform
 from app.api.auth import get_current_user
@@ -99,6 +99,39 @@ async def get_model(model_id: int, db: AsyncSession = Depends(get_db), _user: Us
         raise HTTPException(404, 'Modell nicht gefunden')
     return _model_to_dict(model)
 
+@router.patch('/{model_id}/tags')
+async def set_model_tags(model_id: int, body: dict, db: AsyncSession = Depends(get_db), _user: User = auth):
+    model = (await db.execute(select(Model).where(Model.id == model_id))).scalar_one_or_none()
+    if not model:
+        raise HTTPException(404, 'Modell nicht gefunden')
+    existing = (await db.execute(select(ModelTag).where(ModelTag.model_id == model_id))).scalars().all()
+    for mt in existing:
+        await db.delete(mt)
+    await db.flush()
+    for name in body.get('tags', []):
+        name = name.strip().lower()[:100]
+        if not name:
+            continue
+        tag = (await db.execute(select(Tag).where(Tag.name == name))).scalar_one_or_none()
+        if not tag:
+            tag = Tag(name=name)
+            db.add(tag)
+            await db.flush()
+        db.add(ModelTag(model_id=model_id, tag_id=tag.id))
+    await db.commit()
+    return {'ok': True}
+
+
+@router.patch('/{model_id}/notes')
+async def set_model_notes(model_id: int, body: dict, db: AsyncSession = Depends(get_db), _user: User = auth):
+    model = (await db.execute(select(Model).where(Model.id == model_id))).scalar_one_or_none()
+    if not model:
+        raise HTTPException(404, 'Modell nicht gefunden')
+    model.notes = body.get('notes', '')
+    await db.commit()
+    return {'ok': True}
+
+
 @router.delete('/{model_id}', status_code=204)
 async def delete_model(model_id: int, db: AsyncSession = Depends(get_db), _user: User = auth):
     stmt = select(Model).where(Model.id == model_id)
@@ -120,6 +153,7 @@ def _model_to_dict(m: Model) -> dict:
         'author_url': m.author_url,
         'license': m.license,
         'print_settings': m.print_settings,
+        'notes': m.notes or '',
         'created_at': m.created_at.isoformat() if m.created_at else None,
         'preview_image': ('/api/files/' + preview.storage_path) if preview else None,
         'tags': [mt.tag.name for mt in m.model_tags if mt.tag],

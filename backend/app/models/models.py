@@ -27,11 +27,14 @@ class Model(Base):
     author_url = Column(String(2000))
     license = Column(String(255))
     print_settings = Column(JSON)
+    notes = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     files = relationship('ModelFile', back_populates='model', cascade='all, delete-orphan')
     model_tags = relationship('ModelTag', back_populates='model', cascade='all, delete-orphan')
+    collection_models = relationship('CollectionModel', back_populates='model', cascade='all, delete-orphan')
+
 
 class ModelFile(Base):
     __tablename__ = 'model_files'
@@ -47,6 +50,7 @@ class ModelFile(Base):
 
     model = relationship('Model', back_populates='files')
 
+
 class Tag(Base):
     __tablename__ = 'tags'
 
@@ -54,6 +58,7 @@ class Tag(Base):
     name = Column(String(255), nullable=False, unique=True)
 
     model_tags = relationship('ModelTag', back_populates='tag')
+
 
 class ModelTag(Base):
     __tablename__ = 'model_tags'
@@ -63,3 +68,27 @@ class ModelTag(Base):
 
     model = relationship('Model', back_populates='model_tags')
     tag = relationship('Tag', back_populates='model_tags')
+
+
+class Collection(Base):
+    __tablename__ = 'collections'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    collection_models = relationship('CollectionModel', back_populates='collection', cascade='all, delete-orphan')
+
+
+class CollectionModel(Base):
+    __tablename__ = 'collection_models'
+
+    collection_id = Column(Integer, ForeignKey('collections.id'), primary_key=True)
+    model_id = Column(Integer, ForeignKey('models.id'), primary_key=True)
+    position = Column(Integer, default=0)
+    added_at = Column(DateTime, server_default=func.now())
+
+    collection = relationship('Collection', back_populates='collection_models')
+    model = relationship('Model', back_populates='collection_models')

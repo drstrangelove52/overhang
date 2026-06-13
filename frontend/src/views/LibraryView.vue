@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject, watch } from 'vue'
 import { listModels, importModel, pollJob } from '../api.js'
 import ModelCard from '../components/ModelCard.vue'
 import ModelDetailView from './ModelDetailView.vue'
@@ -117,6 +117,13 @@ const importError = ref('')
 const importStatusText = ref('Importiere…')
 const importFocused = ref(false)
 const importInput = ref(null)
+
+const pendingModelId = inject('pendingModelId', null)
+if (pendingModelId) {
+  watch(pendingModelId, (id) => {
+    if (id) { detailId.value = id; pendingModelId.value = null }
+  })
+}
 
 onMounted(() => load())
 
