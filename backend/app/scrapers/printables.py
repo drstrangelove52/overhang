@@ -23,13 +23,16 @@ def _extract_id(url: str):
     m = re.search(r"/model/(\d+)", url)
     return m.group(1) if m else None
 
-def _stl_download_url(file_preview_path: str, filename: str) -> str:
+def _stl_download_url(file_preview_path: str, filename: str) -> str | None:
     """Derive download URL from filePreviewPath.
 
-    filePreviewPath: media/prints/3161/stls/123914_uuid/3dbenchy_preview.png
-    download URL:    https://media.printables.com/media/prints/3161/stls/123914_uuid/3dbenchy.stl
+    Only works for the pattern: media/prints/{id}/stls/{file_id_uuid}/{name}_preview.png
+    Returns None for hash-based preview paths (newer models), where the URL can't be derived.
     """
-    dir_path = "/".join(file_preview_path.split("/")[:-1])
+    parts = file_preview_path.split("/")
+    if len(parts) < 4 or parts[2] != "stls":
+        return None
+    dir_path = "/".join(parts[:-1])
     return CDN_BASE + dir_path + "/" + filename
 
 async def scrape(url: str) -> ScrapedModel:
@@ -63,15 +66,17 @@ async def scrape(url: str) -> ScrapedModel:
         if img.get("filePath")
     ]
 
-    stl_files = [
-        ScrapedFile(
-            url=_stl_download_url(f["filePreviewPath"], f["name"]),
-            filename=f["name"],
-            file_type="3mf" if f["name"].lower().endswith(".3mf") else "stl",
-        )
-        for f in (p.get("stls") or [])
-        if f.get("filePreviewPath") and f.get("name")
-    ]
+    stl_files = []
+    for f in (p.get("stls") or []):
+        if not f.get("name"):
+            continue
+        dl_url = _stl_download_url(f.get("filePreviewPath", ""), f["name"]) if f.get("filePreviewPath") else None
+        if dl_url:
+            stl_files.append(ScrapedFile(
+                url=dl_url,
+                filename=f["name"],
+                file_type="3mf" if f["name"].lower().endswith(".3mf") else "stl",
+            ))
 
     tags = [t["name"] for t in (p.get("tags") or []) if t.get("name")]
 
