@@ -20,6 +20,8 @@ async def _scrape_model_async(task, url: str) -> dict:
         from app.scrapers.printables import scrape
     elif platform == 'thingiverse':
         from app.scrapers.thingiverse import scrape
+    elif platform == 'makerworld':
+        from app.scrapers.makerworld import scrape
     else:
         raise ValueError(f'Plattform nicht unterstützt: {platform} ({url})')
 
