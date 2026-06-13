@@ -1,14 +1,19 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, BigInteger, ForeignKey, JSON, Enum
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, BigInteger, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.models.database import Base
-import enum
 
-class FileType(str, enum.Enum):
-    stl = 'stl'
-    file_3mf = '3mf'
-    image = 'image'
-    other = 'other'
+
+class User(Base):
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(100), nullable=False, unique=True)
+    email = Column(String(255), unique=True)
+    hashed_password = Column(String(255), nullable=False)
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+
 
 class Model(Base):
     __tablename__ = 'models'

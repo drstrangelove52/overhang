@@ -2,16 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 from typing import Optional
 from celery.result import AsyncResult
 
 from app.models.database import get_db
-from app.models.models import Model, ModelFile, Tag, ModelTag
+from app.models.models import Model, ModelFile, Tag, ModelTag, User
 from app.tasks.celery_app import celery_app
 from app.scrapers.detect import detect_platform
+from app.api.auth import get_current_user
 
 router = APIRouter(prefix='/api/models', tags=['models'])
+auth = Depends(get_current_user)
 
 class ImportRequest(BaseModel):
     url: str
@@ -28,7 +30,7 @@ class JobStatus(BaseModel):
     error: Optional[str] = None
 
 @router.post('/import', response_model=ImportResponse)
-async def import_model(req: ImportRequest):
+async def import_model(req: ImportRequest, _user: User = auth):
     platform = detect_platform(req.url)
     if platform == 'unknown':
         raise HTTPException(400, 'URL nicht erkannt. Unterstützt: printables.com, thingiverse.com')
@@ -38,7 +40,7 @@ async def import_model(req: ImportRequest):
     return ImportResponse(job_id=job.id, platform=platform, message=f'Import gestartet ({platform})')
 
 @router.get('/jobs/{job_id}', response_model=JobStatus)
-async def job_status(job_id: str):
+async def job_status(job_id: str, _user: User = auth):
     result = AsyncResult(job_id, app=celery_app)
     if result.state == 'FAILURE':
         return JobStatus(job_id=job_id, state='FAILURE', error=str(result.result))
@@ -54,6 +56,7 @@ async def list_models(
     skip: int = 0,
     limit: int = 48,
     db: AsyncSession = Depends(get_db),
+    _user: User = auth,
 ):
     stmt = select(Model).options(
         selectinload(Model.files),
@@ -82,7 +85,7 @@ async def list_models(
     }
 
 @router.get('/{model_id}')
-async def get_model(model_id: int, db: AsyncSession = Depends(get_db)):
+async def get_model(model_id: int, db: AsyncSession = Depends(get_db), _user: User = auth):
     stmt = select(Model).where(Model.id == model_id).options(
         selectinload(Model.files),
         selectinload(Model.model_tags).selectinload(ModelTag.tag),
@@ -93,7 +96,7 @@ async def get_model(model_id: int, db: AsyncSession = Depends(get_db)):
     return _model_to_dict(model)
 
 @router.delete('/{model_id}', status_code=204)
-async def delete_model(model_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_model(model_id: int, db: AsyncSession = Depends(get_db), _user: User = auth):
     stmt = select(Model).where(Model.id == model_id)
     model = (await db.execute(stmt)).scalar_one_or_none()
     if not model:
