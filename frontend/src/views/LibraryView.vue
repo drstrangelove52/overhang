@@ -26,6 +26,7 @@
             {{ importStatusText }}
           </div>
           <div v-else-if="importState === 'done'" class="text-green-400 text-sm shrink-0">✓ Importiert</div>
+          <div v-else-if="importState === 'duplicate'" class="text-orange-400 text-sm shrink-0 max-w-xs truncate" :title="importError">{{ importError }}</div>
           <div v-else-if="importState === 'error'" class="text-red-400 text-sm shrink-0 max-w-xs truncate" :title="importError">{{ importError }}</div>
           <button v-else-if="importUrl"
             @click="startImport"
@@ -129,8 +130,15 @@ async function startImport() {
     const job = await importModel(url)
     await waitForJob(job.job_id)
   } catch (e) {
-    importState.value = 'error'
-    importError.value = e.response?.data?.detail || e.message || 'Import fehlgeschlagen'
+    if (e.response?.status === 409) {
+      importState.value = 'duplicate'
+      importError.value = e.response.data.detail
+      importUrl.value = ''
+      setTimeout(() => { importState.value = 'idle' }, 4000)
+    } else {
+      importState.value = 'error'
+      importError.value = e.response?.data?.detail || e.message || 'Import fehlgeschlagen'
+    }
   }
 }
 

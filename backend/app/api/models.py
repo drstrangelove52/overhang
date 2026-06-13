@@ -30,10 +30,14 @@ class JobStatus(BaseModel):
     error: Optional[str] = None
 
 @router.post('/import', response_model=ImportResponse)
-async def import_model(req: ImportRequest, _user: User = auth):
+async def import_model(req: ImportRequest, db: AsyncSession = Depends(get_db), _user: User = auth):
     platform = detect_platform(req.url)
     if platform == 'unknown':
-        raise HTTPException(400, 'URL nicht erkannt. Unterstützt: printables.com, thingiverse.com')
+        raise HTTPException(400, 'URL nicht erkannt. Unterstützt: printables.com, thingiverse.com, makerworld.com')
+
+    existing = (await db.execute(select(Model).where(Model.source_url == req.url))).scalar_one_or_none()
+    if existing:
+        raise HTTPException(409, f'Bereits importiert: „{existing.title}"')
 
     from app.tasks.scrape import scrape_model
     job = scrape_model.delay(req.url)
