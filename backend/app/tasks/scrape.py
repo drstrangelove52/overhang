@@ -11,7 +11,12 @@ STORAGE_PATH = os.getenv('STORAGE_PATH', '/app/storage')
 
 @celery_app.task(bind=True, name='scrape_model')
 def scrape_model(self, url: str) -> dict:
-    return asyncio.run(_scrape_model_async(self, url))
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(_scrape_model_async(self, url))
+    finally:
+        loop.close()
 
 async def _scrape_model_async(task, url: str) -> dict:
     platform = detect_platform(url)
