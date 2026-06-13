@@ -65,7 +65,7 @@ docker compose up --build -d
 
 # --- Wait for health ---
 info "Warte auf Dienste..."
-sleep 8
+sleep 15
 
 if curl -sk https://localhost/api/health | grep -q '"ok"'; then
     echo ""
@@ -78,5 +78,5 @@ if curl -sk https://localhost/api/health | grep -q '"ok"'; then
     warn "Hinweis: Browser-Warnung beim ersten Aufruf wegen self-signed Zertifikat"
     warn "        einfach mit 'Trotzdem fortfahren' bestätigen"
 else
-    warn "Dienste noch nicht bereit. Status prüfen mit: docker compose -C $INSTALL_DIR ps"
+    warn "Dienste noch nicht bereit. Status prüfen mit: docker compose -f $INSTALL_DIR ps"
 fi
