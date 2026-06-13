@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import DeclarativeBase
 import os
 
-DATABASE_URL = os.getenv(DATABASE_URL, mysql+aiomysql://overhang:overhang@db/overhang)
+DATABASE_URL = os.getenv("DATABASE_URL", "mysql+aiomysql://overhang:overhang@db/overhang")
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
@@ -10,6 +10,6 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 class Base(DeclarativeBase):
     pass
 
-async def get_db() -> AsyncSession:
+async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
