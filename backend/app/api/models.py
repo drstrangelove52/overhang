@@ -1,0 +1,130 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, or_, func
+from sqlalchemy.orm import selectinload
+from pydantic import BaseModel, HttpUrl
+from typing import Optional
+from celery.result import AsyncResult
+
+from app.models.database import get_db
+from app.models.models import Model, ModelFile, Tag, ModelTag
+from app.tasks.celery_app import celery_app
+from app.scrapers.detect import detect_platform
+
+router = APIRouter(prefix='/api/models', tags=['models'])
+
+class ImportRequest(BaseModel):
+    url: str
+
+class ImportResponse(BaseModel):
+    job_id: str
+    platform: str
+    message: str
+
+class JobStatus(BaseModel):
+    job_id: str
+    state: str
+    result: Optional[dict] = None
+    error: Optional[str] = None
+
+@router.post('/import', response_model=ImportResponse)
+async def import_model(req: ImportRequest):
+    platform = detect_platform(req.url)
+    if platform == 'unknown':
+        raise HTTPException(400, 'URL nicht erkannt. Unterstützt: printables.com, thingiverse.com')
+
+    from app.tasks.scrape import scrape_model
+    job = scrape_model.delay(req.url)
+    return ImportResponse(job_id=job.id, platform=platform, message=f'Import gestartet ({platform})')
+
+@router.get('/jobs/{job_id}', response_model=JobStatus)
+async def job_status(job_id: str):
+    result = AsyncResult(job_id, app=celery_app)
+    if result.state == 'FAILURE':
+        return JobStatus(job_id=job_id, state='FAILURE', error=str(result.result))
+    if result.state == 'SUCCESS':
+        return JobStatus(job_id=job_id, state='SUCCESS', result=result.result)
+    return JobStatus(job_id=job_id, state=result.state, result=result.info if isinstance(result.info, dict) else None)
+
+@router.get('')
+async def list_models(
+    q: Optional[str] = None,
+    platform: Optional[str] = None,
+    tag: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 48,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Model).options(
+        selectinload(Model.files),
+        selectinload(Model.model_tags).selectinload(ModelTag.tag),
+    ).order_by(Model.created_at.desc())
+
+    if q:
+        stmt = stmt.where(or_(
+            Model.title.ilike(f'%{q}%'),
+            Model.description.ilike(f'%{q}%'),
+            Model.author.ilike(f'%{q}%'),
+        ))
+    if platform:
+        stmt = stmt.where(Model.source_platform == platform)
+    if tag:
+        stmt = stmt.join(ModelTag).join(Tag).where(Tag.name == tag.lower())
+
+    total_stmt = select(func.count()).select_from(stmt.subquery())
+    total = (await db.execute(total_stmt)).scalar()
+
+    models = (await db.execute(stmt.offset(skip).limit(limit))).scalars().all()
+
+    return {
+        'total': total,
+        'items': [_model_to_dict(m) for m in models],
+    }
+
+@router.get('/{model_id}')
+async def get_model(model_id: int, db: AsyncSession = Depends(get_db)):
+    stmt = select(Model).where(Model.id == model_id).options(
+        selectinload(Model.files),
+        selectinload(Model.model_tags).selectinload(ModelTag.tag),
+    )
+    model = (await db.execute(stmt)).scalar_one_or_none()
+    if not model:
+        raise HTTPException(404, 'Modell nicht gefunden')
+    return _model_to_dict(model)
+
+@router.delete('/{model_id}', status_code=204)
+async def delete_model(model_id: int, db: AsyncSession = Depends(get_db)):
+    stmt = select(Model).where(Model.id == model_id)
+    model = (await db.execute(stmt)).scalar_one_or_none()
+    if not model:
+        raise HTTPException(404, 'Modell nicht gefunden')
+    await db.delete(model)
+    await db.commit()
+
+def _model_to_dict(m: Model) -> dict:
+    preview = next((f for f in m.files if f.is_primary_preview and f.file_type == 'image'), None)
+    return {
+        'id': m.id,
+        'title': m.title,
+        'description': m.description,
+        'source_url': m.source_url,
+        'source_platform': m.source_platform,
+        'author': m.author,
+        'author_url': m.author_url,
+        'license': m.license,
+        'print_settings': m.print_settings,
+        'created_at': m.created_at.isoformat() if m.created_at else None,
+        'preview_image': ('/api/files/' + preview.storage_path) if preview else None,
+        'tags': [mt.tag.name for mt in m.model_tags if mt.tag],
+        'files': [
+            {
+                'id': f.id,
+                'filename': f.filename,
+                'file_type': f.file_type,
+                'file_size': f.file_size,
+                'url': '/api/files/' + f.storage_path,
+                'is_primary_preview': f.is_primary_preview,
+            }
+            for f in m.files
+        ],
+    }
