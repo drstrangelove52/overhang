@@ -146,8 +146,8 @@
               <span class="text-sm truncate flex-1">{{ f.filename }}</span>
               <span v-if="f.file_size" class="text-xs text-gray-500 flex-shrink-0">{{ formatSize(f.file_size) }}</span>
 
-              <!-- Slicer dropdown -->
-              <div class="relative flex-shrink-0" @click.stop>
+              <!-- Slicer dropdown (3MF only) -->
+              <div v-if="f.file_type === '3mf'" class="relative flex-shrink-0" @click.stop>
                 <button @click="slicerMenuOpen = slicerMenuOpen === f.id ? null : f.id"
                   class="text-gray-500 hover:text-orange-400 transition-colors p-0.5" title="Im Slicer öffnen">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,6 +182,9 @@
             <a :href="model.source_url" target="_blank" class="text-orange-400 hover:underline">
               auf {{ platformLabel }} herunterladen ↗
             </a>
+          </p>
+          <p v-if="printFiles.length" class="text-xs text-gray-600 mt-2">
+            Datei herunterladen und per Drag &amp; Drop in den Slicer ziehen.
           </p>
         </div>
 
@@ -273,9 +276,8 @@ const selectedFiles = ref(new Set())
 const slicerMenuOpen = ref(null)
 
 const slicers = [
-  { label: 'Bambu Studio',  scheme: 'bambustudio' },
-  { label: 'OrcaSlicer',    scheme: 'orcaslicer' },
-  { label: 'PrusaSlicer',   scheme: 'prusaslicer' },
+  { label: 'Bambu Studio', scheme: 'bambustudio' },
+  { label: 'OrcaSlicer',   scheme: 'orcaslicer' },
 ]
 
 function fileAbsUrl(relUrl) {
