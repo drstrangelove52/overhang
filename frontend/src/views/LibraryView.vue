@@ -120,7 +120,7 @@
            style="background: rgba(0,0,0,0.82);"
            @click.self="closeDetail">
         <div class="min-h-full flex items-start justify-center p-4 sm:p-6">
-          <div class="relative w-full max-w-5xl bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl my-4 sm:my-8"
+          <div class="relative w-full max-w-5xl bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl my-4 sm:my-8 text-gray-100"
                @click.stop>
             <!-- Close button -->
             <button @click="closeDetail"
