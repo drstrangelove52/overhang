@@ -187,9 +187,10 @@ async function loadModel(ext, url) {
   throw new Error(`Format .${ext} nicht unterstützt`)
 }
 
-// Custom 3MF parser — bypasses ThreeMFLoader which crashes on files
-// containing <object type="other"> (common in Bambu Studio / Printables exports).
-// 3MF is a ZIP archive containing a 3D/3dmodel.model XML file.
+// Custom 3MF parser.
+// Bambu Studio 3MF files store geometry in separate files under 3D/Objects/
+// rather than in the main 3D/3dmodel.model. We therefore parse ALL .model
+// files found in the ZIP and collect every mesh from them.
 async function load3MF(url) {
   const resp = await fetch(url)
   if (!resp.ok) throw new Error(`HTTP ${resp.status} beim Laden der Datei`)
@@ -203,89 +204,60 @@ async function load3MF(url) {
     throw new Error('3MF-Datei ist kein gültiges ZIP-Archiv')
   }
 
-  // Locate the main model file
-  let modelBytes = files['3D/3dmodel.model']
-  if (!modelBytes) {
-    const key = Object.keys(files).find(k => k.endsWith('.model'))
-    if (key) modelBytes = files[key]
-  }
-  if (!modelBytes) throw new Error('Kein 3D-Modell in der 3MF-Datei gefunden')
-
-  const xml = new DOMParser().parseFromString(
-    new TextDecoder().decode(modelBytes), 'text/xml'
-  )
-  if (xml.querySelector('parsererror')) throw new Error('3MF XML konnte nicht geparst werden')
-
-  // Build a vertex lookup from the <resources> section
-  const objectMap = {}
-  for (const obj of xml.querySelectorAll('resources > object')) {
-    const id = obj.getAttribute('id')
-    const type = obj.getAttribute('type') || 'model'
-    if (type !== 'model') continue
-    const meshEl = obj.querySelector('mesh')
-    if (!meshEl) continue
-    objectMap[id] = meshEl
-  }
-
-  // Build THREE meshes
+  const dec = new TextDecoder()
   const group = new THREE.Group()
   const mat = MAT()
   let totalTriangles = 0
 
-  // Process build items — resolve components recursively
-  const buildItems = xml.querySelectorAll('build > item')
-  const processedIds = new Set()
+  // Collect all .model files; main file first, then subdirectory files
+  const modelKeys = Object.keys(files).filter(k => k.endsWith('.model'))
+  modelKeys.sort((a, b) => {
+    if (a === '3D/3dmodel.model') return -1
+    if (b === '3D/3dmodel.model') return 1
+    return a.localeCompare(b)
+  })
 
-  function addMeshFromObject(id) {
-    if (processedIds.has(id)) return
-    processedIds.add(id)
+  if (modelKeys.length === 0) throw new Error('Keine .model-Datei im 3MF-Archiv gefunden')
 
-    const meshEl = objectMap[id]
-    if (!meshEl) {
-      // May be a component referencing other objects
-      const objEl = xml.querySelector(`resources > object[id="${id}"]`)
-      if (objEl) {
-        for (const comp of objEl.querySelectorAll('components > component')) {
-          addMeshFromObject(comp.getAttribute('objectid'))
-        }
+  for (const key of modelKeys) {
+    const xmlStr = dec.decode(files[key])
+    const doc = new DOMParser().parseFromString(xmlStr, 'text/xml')
+    if (doc.querySelector('parsererror')) continue
+
+    // getElementsByTagName matches local name regardless of XML namespace
+    const objectEls = Array.from(doc.getElementsByTagName('object'))
+    for (const obj of objectEls) {
+      const type = obj.getAttribute('type') || 'model'
+      if (type !== 'model') continue
+
+      const meshEls = obj.getElementsByTagName('mesh')
+      if (!meshEls.length) continue
+      const meshEl = meshEls[0]
+
+      const vertexEls = Array.from(meshEl.getElementsByTagName('vertex'))
+      const triEls    = Array.from(meshEl.getElementsByTagName('triangle'))
+      if (!vertexEls.length || !triEls.length) continue
+
+      const positions = new Float32Array(vertexEls.length * 3)
+      for (let i = 0; i < vertexEls.length; i++) {
+        positions[i * 3]     = parseFloat(vertexEls[i].getAttribute('x'))
+        positions[i * 3 + 1] = parseFloat(vertexEls[i].getAttribute('y'))
+        positions[i * 3 + 2] = parseFloat(vertexEls[i].getAttribute('z'))
       }
-      return
-    }
 
-    const vertexEls = meshEl.querySelectorAll('vertices > vertex')
-    const triEls = meshEl.querySelectorAll('triangles > triangle')
-    if (!vertexEls.length || !triEls.length) return
+      const indices = new Uint32Array(triEls.length * 3)
+      for (let i = 0; i < triEls.length; i++) {
+        indices[i * 3]     = parseInt(triEls[i].getAttribute('v1'))
+        indices[i * 3 + 1] = parseInt(triEls[i].getAttribute('v2'))
+        indices[i * 3 + 2] = parseInt(triEls[i].getAttribute('v3'))
+      }
 
-    const positions = new Float32Array(vertexEls.length * 3)
-    for (let i = 0; i < vertexEls.length; i++) {
-      positions[i * 3]     = parseFloat(vertexEls[i].getAttribute('x'))
-      positions[i * 3 + 1] = parseFloat(vertexEls[i].getAttribute('y'))
-      positions[i * 3 + 2] = parseFloat(vertexEls[i].getAttribute('z'))
-    }
-
-    const indices = new Uint32Array(triEls.length * 3)
-    for (let i = 0; i < triEls.length; i++) {
-      indices[i * 3]     = parseInt(triEls[i].getAttribute('v1'))
-      indices[i * 3 + 1] = parseInt(triEls[i].getAttribute('v2'))
-      indices[i * 3 + 2] = parseInt(triEls[i].getAttribute('v3'))
-    }
-
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geo.setIndex(new THREE.BufferAttribute(indices, 1))
-    geo.computeVertexNormals()
-    group.add(new THREE.Mesh(geo, mat))
-    totalTriangles += triEls.length
-  }
-
-  if (buildItems.length > 0) {
-    for (const item of buildItems) {
-      addMeshFromObject(item.getAttribute('objectid'))
-    }
-  } else {
-    // No build section — load all mesh objects directly
-    for (const id of Object.keys(objectMap)) {
-      addMeshFromObject(id)
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+      geo.setIndex(new THREE.BufferAttribute(indices, 1))
+      geo.computeVertexNormals()
+      group.add(new THREE.Mesh(geo, mat))
+      totalTriangles += triEls.length
     }
   }
 
