@@ -53,7 +53,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { listCredentials, saveCredential, deleteCredential, testCredential } from '../api.js'
+import { saveCredential, deleteCredential, testCredential } from '../api.js'
 
 const token = ref('')
 const configured = ref(false)
