@@ -169,10 +169,17 @@
               </div>
 
               <!-- Download -->
-              <button @click.stop="downloadFile(f.url, f.filename)" class="text-gray-500 hover:text-white flex-shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button @click.stop="downloadFile(f.id, f.url, f.filename)"
+                :disabled="downloading.has(f.id)"
+                class="flex-shrink-0 transition-colors"
+                :class="downloading.has(f.id) ? 'text-orange-400 cursor-wait' : 'text-gray-500 hover:text-white'">
+                <svg v-if="!downloading.has(f.id)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                 </svg>
               </button>
             </div>
@@ -271,6 +278,7 @@ const uploadProgress = ref(0)
 const uploadError = ref('')
 const selectedFiles = ref(new Set())
 const slicerMenuOpen = ref(null)
+const downloading = ref(new Set())
 
 const slicers = [
   { label: 'Bambu Studio',  scheme: 'bambustudio' },
@@ -283,9 +291,10 @@ function fileAbsUrl(relUrl) {
   return 'http://' + window.location.hostname + relUrl
 }
 
-async function downloadFile(relUrl, filename) {
-  // Use fetch so the browser's already-accepted cert exception applies.
-  // A plain <a href> download would be blocked by Chrome for self-signed certs.
+async function downloadFile(fileId, relUrl, filename) {
+  const d = new Set(downloading.value)
+  d.add(fileId)
+  downloading.value = d
   try {
     const resp = await fetch(relUrl)
     const blob = await resp.blob()
@@ -297,6 +306,10 @@ async function downloadFile(relUrl, filename) {
     URL.revokeObjectURL(url)
   } catch (e) {
     alert('Download fehlgeschlagen: ' + e.message)
+  } finally {
+    const d2 = new Set(downloading.value)
+    d2.delete(fileId)
+    downloading.value = d2
   }
 }
 
