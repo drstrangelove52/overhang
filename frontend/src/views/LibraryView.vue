@@ -18,7 +18,7 @@
             @focus="importFocused = true"
             @blur="importFocused = false"
             @keydown.enter="startImport"
-            @paste.once="onPaste"
+            @paste="onPaste"
             ref="importInput"
           />
           <div v-if="importState === 'running'" class="flex items-center gap-2 text-orange-400 text-sm shrink-0">
@@ -173,10 +173,12 @@ async function waitForJob(jobId) {
   importError.value = 'Timeout'
 }
 
-function onPaste() {
-  setTimeout(() => {
-    if (importUrl.value.trim().startsWith('http')) startImport()
-  }, 50)
+function onPaste(e) {
+  const text = e.clipboardData?.getData('text') || ''
+  if (!text.trim().startsWith('http')) return
+  importState.value = 'idle'
+  importError.value = ''
+  setTimeout(() => startImport(), 50)
 }
 
 async function load(reset = true) {
