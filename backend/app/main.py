@@ -1,7 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
+import os, mimetypes
+
+# Ensure 3D print file types are served as binary, not text/plain
+mimetypes.add_type('application/octet-stream', '.stl')
+mimetypes.add_type('application/vnd.ms-package.3dmanufacturing-3dmodel+xml', '.3mf')
+mimetypes.add_type('application/octet-stream', '.gcode')
+mimetypes.add_type('application/octet-stream', '.bgcode')
+mimetypes.add_type('application/octet-stream', '.step')
+mimetypes.add_type('application/octet-stream', '.obj')
 
 app = FastAPI(title='Overhang', version='0.1.0')
 
