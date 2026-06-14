@@ -1,6 +1,6 @@
 <template>
-  <div v-if="!detailId">
-
+  <!-- Library always visible -->
+  <div>
     <!-- Import bar -->
     <div class="mb-4">
       <div class="relative">
@@ -112,15 +112,38 @@
     </div>
   </div>
 
-  <!-- Detail view -->
-  <ModelDetailView v-else :model-id="detailId"
-    @back="detailId = null"
-    @deleted="onDeleted"
-    @filter-tag="onFilterTag" />
+  <!-- Model detail modal -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="detailId"
+           class="fixed inset-0 z-40 overflow-y-auto"
+           style="background: rgba(0,0,0,0.75);"
+           @click.self="closeDetail">
+        <div class="min-h-full flex items-start justify-center p-4 sm:p-6">
+          <div class="relative w-full max-w-5xl bg-gray-950 rounded-2xl shadow-2xl my-4 sm:my-8"
+               @click.stop>
+            <!-- Close button -->
+            <button @click="closeDetail"
+                    class="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center
+                           bg-gray-800 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors text-lg leading-none"
+                    title="Schliessen (ESC)">
+              ×
+            </button>
+            <div class="p-5 sm:p-8">
+              <ModelDetailView :model-id="detailId"
+                @back="closeDetail"
+                @deleted="onDeleted"
+                @filter-tag="onFilterTag" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, onMounted, inject, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, inject, watch } from 'vue'
 import { listModels, importModel, pollJob } from '../api.js'
 import ModelCard from '../components/ModelCard.vue'
 import ModelDetailView from './ModelDetailView.vue'
@@ -146,11 +169,37 @@ const importInput = ref(null)
 const pendingModelId = inject('pendingModelId', null)
 if (pendingModelId) {
   watch(pendingModelId, (id) => {
-    if (id) { detailId.value = id; pendingModelId.value = null }
+    if (id) { openDetail(id); pendingModelId.value = null }
   })
 }
 
-onMounted(() => load())
+function openDetail(id) {
+  detailId.value = id
+}
+
+function closeDetail() {
+  detailId.value = null
+}
+
+// Lock body scroll while modal is open, restore on close
+watch(detailId, (id) => {
+  document.body.style.overflow = id ? 'hidden' : ''
+})
+
+// ESC closes the modal
+function onKeydown(e) {
+  if (e.key === 'Escape' && detailId.value) closeDetail()
+}
+
+onMounted(() => {
+  load()
+  document.addEventListener('keydown', onKeydown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown)
+  document.body.style.overflow = ''
+})
 
 async function startImport() {
   const url = importUrl.value.trim()
@@ -233,12 +282,8 @@ async function loadMore() {
   await load(false)
 }
 
-function openDetail(id) {
-  detailId.value = id
-}
-
 function onDeleted() {
-  detailId.value = null
+  closeDetail()
   load()
 }
 
@@ -253,10 +298,19 @@ function clearTagFilter() {
 }
 
 function onFilterTag(tag) {
-  detailId.value = null
+  closeDetail()
   filterTag.value = tag
   load()
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 </script>
+
+<style scoped>
+.modal-enter-active, .modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-enter-from, .modal-leave-to {
+  opacity: 0;
+}
+</style>
