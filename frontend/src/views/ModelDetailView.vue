@@ -1,13 +1,31 @@
 <template>
   <div v-if="model" class="max-w-5xl mx-auto">
-    <button @click="$emit('back')" class="flex items-center gap-2 text-gray-400 hover:text-white mb-6 text-sm">
+    <button @click="$emit('back')" class="flex items-center gap-2 text-gray-400 hover:text-white mb-5 text-sm">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
       Zurück
     </button>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Header: title + platform + meta -->
+    <div class="mb-5">
+      <div class="flex items-start gap-3 mb-2">
+        <h1 class="text-2xl font-bold leading-tight flex-1">{{ model.title }}</h1>
+        <span class="text-xs bg-gray-800 text-gray-400 px-2.5 py-1 rounded-full flex-shrink-0 mt-1">{{ platformLabel }}</span>
+      </div>
+      <div class="flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-500">
+        <span v-if="model.author">
+          Autor:
+          <a v-if="model.author_url" :href="model.author_url" target="_blank" class="text-orange-400 hover:underline">{{ model.author }}</a>
+          <span v-else class="text-gray-300">{{ model.author }}</span>
+        </span>
+        <span v-if="model.license">Lizenz: <span class="text-gray-300">{{ model.license }}</span></span>
+        <a v-if="model.source_url" :href="model.source_url" target="_blank" class="text-orange-400 hover:underline">Original ansehen ↗</a>
+      </div>
+    </div>
+
+    <!-- 2-column: image gallery + tags/collections/notes -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
       <!-- Image gallery -->
       <div>
         <div class="aspect-[4/3] bg-gray-800 rounded-xl overflow-hidden">
@@ -29,35 +47,12 @@
         </div>
       </div>
 
-      <!-- Metadata -->
-      <div>
-        <div class="flex items-start justify-between gap-3">
-          <h1 class="text-xl font-bold leading-tight">{{ model.title }}</h1>
-          <span class="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded-full flex-shrink-0">{{ platformLabel }}</span>
-        </div>
-
-        <div class="mt-3 space-y-2 text-sm">
-          <div v-if="model.author" class="flex gap-2">
-            <span class="text-gray-500 w-20 flex-shrink-0">Autor</span>
-            <a v-if="model.author_url" :href="model.author_url" target="_blank"
-               class="text-orange-400 hover:underline truncate">{{ model.author }}</a>
-            <span v-else>{{ model.author }}</span>
-          </div>
-          <div v-if="model.license" class="flex gap-2">
-            <span class="text-gray-500 w-20 flex-shrink-0">Lizenz</span>
-            <span class="text-gray-300">{{ model.license }}</span>
-          </div>
-          <div v-if="model.source_url" class="flex gap-2">
-            <span class="text-gray-500 w-20 flex-shrink-0">Quelle</span>
-            <a :href="model.source_url" target="_blank" class="text-orange-400 hover:underline truncate">
-              Original ansehen ↗
-            </a>
-          </div>
-        </div>
-
+      <!-- Tags + Collections + Notes -->
+      <div class="flex flex-col gap-4">
         <!-- Tags -->
-        <div class="mt-4">
-          <div class="flex flex-wrap gap-1.5 items-center">
+        <div>
+          <span class="text-xs text-gray-500 uppercase tracking-wide">Tags</span>
+          <div class="flex flex-wrap gap-1.5 items-center mt-2">
             <span v-for="tag in editTags" :key="tag"
               class="flex items-center gap-1 text-xs bg-gray-800 text-gray-300 pl-2 pr-1 py-1 rounded-full">
               {{ tag }}
@@ -76,11 +71,9 @@
         </div>
 
         <!-- Collections -->
-        <div class="mt-4">
-          <div class="flex items-center gap-2 mb-1.5">
-            <span class="text-xs text-gray-500">Sammlungen</span>
-          </div>
-          <div class="flex flex-wrap gap-1.5">
+        <div>
+          <span class="text-xs text-gray-500 uppercase tracking-wide">Sammlungen</span>
+          <div class="flex flex-wrap gap-1.5 items-center mt-2">
             <span v-for="col in modelCollections" :key="col.id"
               class="flex items-center gap-1 text-xs bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 pl-2 pr-1 py-1 rounded-full">
               {{ col.name }}
@@ -112,127 +105,126 @@
         </div>
 
         <!-- Notes -->
-        <div class="mt-4">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-xs text-gray-500">Notizen</span>
+        <div class="flex-1">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-500 uppercase tracking-wide">Notizen</span>
             <span v-if="notesSaved" class="text-xs text-green-500">Gespeichert</span>
           </div>
-          <textarea v-model="notesText" rows="3" placeholder="Eigene Notizen zum Modell…"
-            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-orange-400 resize-none"
+          <textarea v-model="notesText" rows="5" placeholder="Eigene Notizen zum Modell…"
+            class="w-full h-full min-h-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-orange-400 resize-none"
             @blur="saveNotes" />
-        </div>
-
-        <!-- Files -->
-        <div class="mt-4">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm font-medium text-gray-400">Dateien</h3>
-            <button v-if="selectedFiles.size > 0" @click="deleteSelected"
-              class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-              {{ selectedFiles.size }} löschen
-            </button>
-          </div>
-          <div v-if="printFiles.length" class="space-y-1">
-            <div v-for="f in printFiles" :key="f.id"
-              class="flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer transition-colors"
-              :class="selectedFiles.has(f.id) ? 'bg-red-900/20 border border-red-800' : 'bg-gray-800 border border-transparent hover:border-gray-700'"
-              @click="toggleSelect(f.id)">
-              <input type="checkbox" :checked="selectedFiles.has(f.id)"
-                class="accent-orange-500 flex-shrink-0 pointer-events-none" />
-              <span class="text-xs font-mono text-orange-400 uppercase flex-shrink-0">{{ f.file_type }}</span>
-              <span class="text-sm truncate flex-1">{{ f.filename }}</span>
-              <span v-if="f.file_size" class="text-xs text-gray-500 flex-shrink-0">{{ formatSize(f.file_size) }}</span>
-
-              <!-- Slicer dropdown (3MF only) -->
-              <div v-if="f.file_type === '3mf'" class="relative flex-shrink-0" @click.stop>
-                <button @click="slicerMenuOpen = slicerMenuOpen === f.id ? null : f.id"
-                  class="text-gray-500 hover:text-orange-400 transition-colors p-0.5" title="Im Slicer öffnen">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                </button>
-                <div v-if="slicerMenuOpen === f.id"
-                  class="absolute right-0 top-6 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 w-40">
-                  <a v-for="slicer in slicers" :key="slicer.scheme"
-                    :href="`${slicer.scheme}://open?file=${encodeURIComponent(fileAbsUrl(f.url))}`"
-                    class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-700 text-gray-300 hover:text-white"
-                    @click="slicerMenuOpen = null">
-                    {{ slicer.label }}
-                  </a>
-                </div>
-              </div>
-
-              <!-- Download -->
-              <a :href="f.url" download class="text-gray-500 hover:text-white flex-shrink-0" @click.stop>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-              </a>
-            </div>
-          </div>
-          <p v-else class="text-sm text-gray-600">
-            Keine Dateien lokal —
-            <a :href="model.source_url" target="_blank" class="text-orange-400 hover:underline">
-              auf {{ platformLabel }} herunterladen ↗
-            </a>
-          </p>
-          <p v-if="printFiles.length" class="text-xs text-gray-600 mt-2">
-            Datei herunterladen und per Drag &amp; Drop in den Slicer ziehen.
-          </p>
-        </div>
-
-        <!-- File drop zone -->
-        <div class="mt-4">
-          <div
-            @dragover.prevent="dropActive = true"
-            @dragleave="dropActive = false"
-            @drop.prevent="onDrop"
-            class="border-2 border-dashed rounded-xl px-4 py-5 text-center text-sm transition-colors"
-            :class="[
-              uploading ? 'border-gray-700 cursor-default' : 'cursor-pointer',
-              dropActive ? 'border-orange-400 bg-orange-500/10 text-orange-300' : 'border-gray-700 text-gray-600 hover:border-gray-600'
-            ]"
-            @click="!uploading && $refs.fileInput.click()"
-          >
-            <template v-if="uploading">
-              <div class="text-gray-400 mb-2">{{ uploadProgress < 100 ? `Überträgt… ${uploadProgress}%` : 'Verarbeite…' }}</div>
-              <div class="w-full bg-gray-800 rounded-full h-2">
-                <div class="bg-orange-500 h-2 rounded-full transition-all duration-200"
-                     :style="{ width: uploadProgress + '%' }" />
-              </div>
-            </template>
-            <span v-else>STL / 3MF / ZIP hier ablegen oder klicken</span>
-          </div>
-          <input ref="fileInput" type="file" multiple accept=".stl,.3mf,.zip" class="hidden" @change="onFileInput" />
-          <p v-if="uploadError" class="text-red-400 text-xs mt-1">{{ uploadError }}</p>
-        </div>
-
-        <!-- Delete -->
-        <div class="mt-6 pt-4 border-t border-gray-800">
-          <button v-if="!confirmDelete" @click="confirmDelete = true" class="text-sm text-red-500 hover:text-red-400">
-            Modell löschen
-          </button>
-          <div v-else class="flex items-center gap-3">
-            <span class="text-sm text-gray-400">Wirklich löschen?</span>
-            <button @click="doDelete" class="text-sm text-red-500 hover:text-red-400 font-medium">Ja, löschen</button>
-            <button @click="confirmDelete = false" class="text-sm text-gray-500 hover:text-white">Abbrechen</button>
-          </div>
         </div>
       </div>
     </div>
 
-    <!-- Description -->
-    <div v-if="model.description" class="mt-8">
-      <h3 class="text-sm font-medium text-gray-400 mb-3">Beschreibung</h3>
-      <div class="prose prose-invert prose-sm max-w-none text-gray-300 bg-gray-900 rounded-xl p-4 border border-gray-800"
+    <!-- Description (full width) -->
+    <div v-if="model.description" class="mb-6">
+      <h3 class="text-xs text-gray-500 uppercase tracking-wide mb-3">Beschreibung</h3>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-sm text-gray-300 leading-relaxed
+                  prose prose-invert prose-sm max-w-none
+                  prose-headings:text-gray-200 prose-a:text-orange-400 prose-strong:text-gray-200"
         v-html="model.description" />
+    </div>
+
+    <!-- Files (full width) -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xs text-gray-500 uppercase tracking-wide">Dateien</h3>
+        <button v-if="selectedFiles.size > 0" @click="deleteSelected"
+          class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          {{ selectedFiles.size }} löschen
+        </button>
+      </div>
+
+      <div v-if="printFiles.length" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-3">
+        <div v-for="f in printFiles" :key="f.id"
+          class="flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer transition-colors"
+          :class="selectedFiles.has(f.id) ? 'bg-red-900/20 border border-red-800' : 'bg-gray-800 border border-transparent hover:border-gray-700'"
+          @click="toggleSelect(f.id)">
+          <input type="checkbox" :checked="selectedFiles.has(f.id)"
+            class="accent-orange-500 flex-shrink-0 pointer-events-none" />
+          <span class="text-xs font-mono text-orange-400 uppercase flex-shrink-0">{{ f.file_type }}</span>
+          <span class="text-sm truncate flex-1">{{ f.filename }}</span>
+          <span v-if="f.file_size" class="text-xs text-gray-500 flex-shrink-0">{{ formatSize(f.file_size) }}</span>
+
+          <!-- Slicer dropdown (3MF only) -->
+          <div v-if="f.file_type === '3mf'" class="relative flex-shrink-0" @click.stop>
+            <button @click="slicerMenuOpen = slicerMenuOpen === f.id ? null : f.id"
+              class="text-gray-500 hover:text-orange-400 transition-colors p-0.5" title="Im Slicer öffnen">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </button>
+            <div v-if="slicerMenuOpen === f.id"
+              class="absolute right-0 top-6 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 w-40">
+              <a v-for="slicer in slicers" :key="slicer.scheme"
+                :href="`${slicer.scheme}://open?file=${encodeURIComponent(fileAbsUrl(f.url))}`"
+                class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-700 text-gray-300 hover:text-white"
+                @click="slicerMenuOpen = null">
+                {{ slicer.label }}
+              </a>
+            </div>
+          </div>
+
+          <!-- Download -->
+          <a :href="f.url" download class="text-gray-500 hover:text-white flex-shrink-0" @click.stop>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <p v-if="!printFiles.length" class="text-sm text-gray-600 mb-3">
+        Keine Dateien lokal —
+        <a :href="model.source_url" target="_blank" class="text-orange-400 hover:underline">
+          auf {{ platformLabel }} herunterladen ↗
+        </a>
+      </p>
+
+      <!-- File drop zone -->
+      <div
+        @dragover.prevent="dropActive = true"
+        @dragleave="dropActive = false"
+        @drop.prevent="onDrop"
+        class="border-2 border-dashed rounded-xl px-4 py-5 text-center text-sm transition-colors"
+        :class="[
+          uploading ? 'border-gray-700 cursor-default' : 'cursor-pointer',
+          dropActive ? 'border-orange-400 bg-orange-500/10 text-orange-300' : 'border-gray-700 text-gray-600 hover:border-gray-600'
+        ]"
+        @click="!uploading && $refs.fileInput.click()"
+      >
+        <template v-if="uploading">
+          <div class="text-gray-400 mb-2">{{ uploadProgress < 100 ? `Überträgt… ${uploadProgress}%` : 'Verarbeite…' }}</div>
+          <div class="w-full bg-gray-800 rounded-full h-2">
+            <div class="bg-orange-500 h-2 rounded-full transition-all duration-200"
+                 :style="{ width: uploadProgress + '%' }" />
+          </div>
+        </template>
+        <span v-else>STL / 3MF / ZIP hier ablegen oder klicken</span>
+      </div>
+      <input ref="fileInput" type="file" multiple accept=".stl,.3mf,.zip" class="hidden" @change="onFileInput" />
+      <p v-if="uploadError" class="text-red-400 text-xs mt-1">{{ uploadError }}</p>
+    </div>
+
+    <!-- Delete -->
+    <div class="pt-4 border-t border-gray-800">
+      <button v-if="!confirmDelete" @click="confirmDelete = true" class="text-sm text-red-500 hover:text-red-400">
+        Modell löschen
+      </button>
+      <div v-else class="flex items-center gap-3">
+        <span class="text-sm text-gray-400">Wirklich löschen?</span>
+        <button @click="doDelete" class="text-sm text-red-500 hover:text-red-400 font-medium">Ja, löschen</button>
+        <button @click="confirmDelete = false" class="text-sm text-gray-500 hover:text-white">Abbrechen</button>
+      </div>
     </div>
   </div>
 
@@ -304,9 +296,7 @@ function onOutsideClick(e) {
 
 function refreshModelCollections() {
   modelCollections.value = allCollections.value.filter(c =>
-    c.models?.some(m => m.id === props.modelId) ||
-    // fallback: re-check after add/remove via reload
-    false
+    c.models?.some(m => m.id === props.modelId) || false
   )
 }
 
@@ -405,7 +395,6 @@ async function uploadFiles(files) {
         if (e.total) uploadProgress.value = Math.round((e.loaded / e.total) * 100)
       })
       uploadProgress.value = 100
-      // ZIP response: { extracted, files: [...] }
       if (result.extracted !== undefined) {
         for (const mf of result.files) {
           model.value.files.push({ ...mf, is_primary_preview: false })
