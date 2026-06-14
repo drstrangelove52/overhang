@@ -6,15 +6,15 @@
       <div class="relative">
         <div class="absolute inset-0 rounded-xl bg-orange-500/10 border border-orange-500/40 pointer-events-none"
              :class="importFocused ? 'border-orange-400 bg-orange-500/15' : ''"></div>
-        <div class="relative flex items-center gap-3 px-4 py-3">
+        <div class="relative flex items-center gap-2 px-3 py-3">
           <svg class="w-5 h-5 text-orange-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
           </svg>
           <input
             v-model="importUrl"
             type="url"
-            placeholder="URL von Printables, MakerWorld, Thingiverse einfügen und Enter drücken…"
-            class="flex-1 bg-transparent text-sm text-white placeholder-orange-300/50 focus:outline-none"
+            placeholder="URL einfügen…"
+            class="flex-1 min-w-0 bg-transparent text-sm text-white placeholder-orange-300/50 focus:outline-none"
             @focus="importFocused = true"
             @blur="importFocused = false"
             @keydown.enter="startImport"
@@ -23,23 +23,23 @@
           />
           <div v-if="importState === 'running'" class="flex items-center gap-2 text-orange-400 text-sm shrink-0">
             <div class="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
-            {{ importStatusText }}
+            <span class="hidden sm:inline">{{ importStatusText }}</span>
           </div>
-          <div v-else-if="importState === 'done'" class="text-green-400 text-sm shrink-0">✓ Importiert</div>
-          <div v-else-if="importState === 'duplicate'" class="text-orange-400 text-sm shrink-0 max-w-xs truncate" :title="importError">{{ importError }}</div>
-          <div v-else-if="importState === 'error'" class="text-red-400 text-sm shrink-0 max-w-xs truncate" :title="importError">{{ importError }}</div>
+          <div v-else-if="importState === 'done'" class="text-green-400 text-sm shrink-0">✓</div>
+          <div v-else-if="importState === 'duplicate'" class="text-orange-400 text-xs shrink-0 max-w-[8rem] truncate" :title="importError">{{ importError }}</div>
+          <div v-else-if="importState === 'error'" class="text-red-400 text-xs shrink-0 max-w-[8rem] truncate" :title="importError">{{ importError }}</div>
           <button v-else-if="importUrl"
             @click="startImport"
             class="shrink-0 bg-orange-500 hover:bg-orange-400 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors">
-            Importieren
+            Import
           </button>
         </div>
       </div>
     </div>
 
     <!-- Search + filter bar -->
-    <div class="flex gap-3 mb-6">
-      <div class="relative flex-1">
+    <div class="flex flex-col sm:flex-row gap-2 mb-6">
+      <div class="relative flex-1 min-w-0">
         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z"/>
         </svg>
@@ -52,7 +52,7 @@
         />
       </div>
       <select v-model="filterPlatform" @change="load()"
-        class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 text-gray-300">
+        class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 text-gray-300 sm:w-auto w-full">
         <option value="">Alle Plattformen</option>
         <option value="printables">Printables</option>
         <option value="thingiverse">Thingiverse</option>

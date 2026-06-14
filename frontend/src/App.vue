@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-gray-950 text-gray-100">
     <template v-if="auth.isLoggedIn">
       <!-- Top nav (tablet + desktop) -->
-      <nav class="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center gap-4">
+      <nav class="sticky top-0 z-30 bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center gap-4">
         <span class="text-xl font-bold text-orange-400">Overhang</span>
         <div class="hidden md:flex items-center gap-1 ml-2">
           <button @click="screen = 'library'"
@@ -30,7 +30,7 @@
       </nav>
 
       <!-- Main content — extra bottom padding on mobile for bottom nav -->
-      <main class="p-4 md:p-6 pb-24 md:pb-6">
+      <main class="p-4 md:p-6 pb-24 md:pb-6 overflow-x-hidden">
         <LibraryView v-if="screen === 'library'" @open-model="openModel" />
         <CollectionsView v-else-if="screen === 'collections'" @open-model="openModel" />
         <SettingsView v-else-if="screen === 'settings'" />

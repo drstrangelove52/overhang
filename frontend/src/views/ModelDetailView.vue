@@ -1,5 +1,5 @@
 <template>
-  <div v-if="model" class="max-w-5xl mx-auto">
+  <div v-if="model" class="max-w-5xl mx-auto min-w-0">
     <button @click="$emit('back')" class="flex items-center gap-2 text-gray-400 hover:text-white mb-5 text-sm">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
