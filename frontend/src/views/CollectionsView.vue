@@ -47,7 +47,7 @@
       </div>
 
       <div v-if="activeCol.models?.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
-        <ModelCard v-for="m in activeCol.models" :key="m.id" :model="m" @click="$emit('open-model', m.id)" />
+        <ModelCard v-for="m in activeCol.models" :key="m.id" :model="m" @click="openDetail(m.id)" />
       </div>
       <p v-else class="text-gray-500 text-sm py-12 text-center">
         Noch keine Modelle. Füge Modelle über die Modell-Detailansicht hinzu.
@@ -117,14 +117,40 @@
       <p class="text-gray-500">Noch keine Sammlungen.</p>
     </div>
   </div>
+
+  <!-- Model detail modal -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="detailId"
+           class="fixed inset-0 z-40 overflow-y-auto backdrop-blur-sm"
+           style="background: rgba(0,0,0,0.82);"
+           @click.self="closeDetail">
+        <div class="min-h-full flex items-start justify-center p-4 sm:p-6">
+          <div class="relative w-full max-w-5xl bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl my-4 sm:my-8 text-gray-100"
+               @click.stop>
+            <button @click="closeDetail"
+                    class="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center
+                           bg-gray-800 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors text-lg leading-none"
+                    title="Schliessen (ESC)">
+              ×
+            </button>
+            <div class="p-5 sm:p-8">
+              <ModelDetailView :model-id="detailId"
+                @back="closeDetail"
+                @deleted="onDeleted" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { listCollections, createCollection, getCollection, updateCollection, deleteCollection } from '../api.js'
 import ModelCard from '../components/ModelCard.vue'
-
-const emit = defineEmits(['open-model'])
+import ModelDetailView from './ModelDetailView.vue'
 
 const collections = ref([])
 const activeColId = ref(null)
@@ -136,10 +162,35 @@ const editingCol = ref(false)
 const editName = ref('')
 const editDesc = ref('')
 const confirmDeleteCol = ref(false)
+const detailId = ref(null)
 
 const activeCol = computed(() => activeColData.value)
 
-onMounted(() => load())
+onMounted(() => {
+  load()
+  document.addEventListener('keydown', onKeydown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown)
+  document.body.style.overflow = ''
+})
+
+watch(detailId, (id) => {
+  document.body.style.overflow = id ? 'hidden' : ''
+})
+
+function onKeydown(e) {
+  if (e.key === 'Escape' && detailId.value) closeDetail()
+}
+
+function openDetail(id) {
+  detailId.value = id
+}
+
+function closeDetail() {
+  detailId.value = null
+}
 
 async function load() {
   collections.value = await listCollections()
@@ -177,4 +228,18 @@ async function doDeleteCol() {
   activeColData.value = null
   confirmDeleteCol.value = false
 }
+
+function onDeleted() {
+  closeDetail()
+  if (activeColId.value) openCollection(activeColId.value)
+}
 </script>
+
+<style scoped>
+.modal-enter-active, .modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-enter-from, .modal-leave-to {
+  opacity: 0;
+}
+</style>

@@ -32,7 +32,7 @@
       <!-- Main content — extra bottom padding on mobile for bottom nav -->
       <main class="p-4 md:p-6 pb-24 md:pb-6 overflow-x-hidden">
         <LibraryView v-if="screen === 'library'" @open-model="openModel" />
-        <CollectionsView v-else-if="screen === 'collections'" @open-model="openModel" />
+        <CollectionsView v-else-if="screen === 'collections'" />
         <SettingsView v-else-if="screen === 'settings'" />
       </main>
 
