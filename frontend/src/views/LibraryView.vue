@@ -2,7 +2,7 @@
   <div v-if="!detailId">
 
     <!-- Import bar -->
-    <div class="mb-6">
+    <div class="mb-4">
       <div class="relative">
         <div class="absolute inset-0 rounded-xl bg-orange-500/10 border border-orange-500/40 pointer-events-none"
              :class="importFocused ? 'border-orange-400 bg-orange-500/15' : ''"></div>
@@ -38,7 +38,7 @@
     </div>
 
     <!-- Search + filter bar -->
-    <div class="flex flex-col sm:flex-row gap-2 mb-6">
+    <div class="flex flex-col sm:flex-row gap-2 mb-3">
       <div class="relative flex-1 min-w-0">
         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z"/>
@@ -51,13 +51,31 @@
           @input="onSearch"
         />
       </div>
-      <select v-model="filterPlatform" @change="load()"
-        class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 text-gray-300 sm:w-auto w-full">
-        <option value="">Alle Plattformen</option>
-        <option value="printables">Printables</option>
-        <option value="thingiverse">Thingiverse</option>
-        <option value="makerworld">MakerWorld</option>
-      </select>
+      <div class="flex gap-2">
+        <select v-model="filterPlatform" @change="load()"
+          class="flex-1 sm:flex-none bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 text-gray-300">
+          <option value="">Alle Plattformen</option>
+          <option value="printables">Printables</option>
+          <option value="thingiverse">Thingiverse</option>
+          <option value="makerworld">MakerWorld</option>
+        </select>
+        <select v-model="sortOrder" @change="load()"
+          class="flex-1 sm:flex-none bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 text-gray-300">
+          <option value="date_desc">Neueste</option>
+          <option value="date_asc">Älteste</option>
+          <option value="title_asc">A → Z</option>
+          <option value="title_desc">Z → A</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Active tag filter chip -->
+    <div v-if="filterTag" class="flex items-center gap-2 mb-4">
+      <span class="text-xs text-gray-500">Tag:</span>
+      <span class="flex items-center gap-1 text-xs bg-orange-500/20 text-orange-300 border border-orange-500/40 pl-2.5 pr-1 py-1 rounded-full">
+        {{ filterTag }}
+        <button @click="clearTagFilter" class="text-orange-400 hover:text-white leading-none ml-0.5">×</button>
+      </span>
     </div>
 
     <!-- Stats -->
@@ -65,7 +83,9 @@
 
     <!-- Grid -->
     <div v-if="models.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-      <ModelCard v-for="m in models" :key="m.id" :model="m" @click="openDetail(m.id)" />
+      <ModelCard v-for="m in models" :key="m.id" :model="m"
+        @click="openDetail(m.id)"
+        @tag-click="setTagFilter" />
     </div>
 
     <!-- Empty state -->
@@ -75,7 +95,7 @@
           d="M20 7l-8-4-8 4m16 0v10l-8 4m-8-4V7m8 4v10"/>
       </svg>
       <p class="text-gray-500">
-        {{ searchQuery ? 'Keine Modelle gefunden.' : 'Noch keine Modelle. Füge oben eine URL ein!' }}
+        {{ filterTag ? `Keine Modelle mit Tag „${filterTag}".` : searchQuery ? 'Keine Modelle gefunden.' : 'Noch keine Modelle. Füge oben eine URL ein!' }}
       </p>
     </div>
 
@@ -93,7 +113,10 @@
   </div>
 
   <!-- Detail view -->
-  <ModelDetailView v-else :model-id="detailId" @back="detailId = null" @deleted="onDeleted" />
+  <ModelDetailView v-else :model-id="detailId"
+    @back="detailId = null"
+    @deleted="onDeleted"
+    @filter-tag="onFilterTag" />
 </template>
 
 <script setup>
@@ -108,11 +131,13 @@ const loading = ref(false)
 const detailId = ref(null)
 const searchQuery = ref('')
 const filterPlatform = ref('')
+const filterTag = ref('')
+const sortOrder = ref('date_desc')
 let searchTimer = null
 
 // Import state
 const importUrl = ref('')
-const importState = ref('idle') // idle | running | done | error
+const importState = ref('idle')
 const importError = ref('')
 const importStatusText = ref('Importiere…')
 const importFocused = ref(false)
@@ -165,9 +190,7 @@ async function waitForJob(jobId) {
       importError.value = job.error || 'Unbekannter Fehler'
       return
     }
-    if (job.result?.step === 'downloading') {
-      importStatusText.value = 'Lädt Dateien…'
-    }
+    if (job.result?.step === 'downloading') importStatusText.value = 'Lädt Dateien…'
   }
   importState.value = 'error'
   importError.value = 'Timeout'
@@ -187,6 +210,8 @@ async function load(reset = true) {
   const data = await listModels({
     q: searchQuery.value || undefined,
     platform: filterPlatform.value || undefined,
+    tag: filterTag.value || undefined,
+    sort: sortOrder.value !== 'date_desc' ? sortOrder.value : undefined,
     skip: reset ? 0 : models.value.length,
     limit: 48,
   })
@@ -214,6 +239,22 @@ function openDetail(id) {
 
 function onDeleted() {
   detailId.value = null
+  load()
+}
+
+function setTagFilter(tag) {
+  filterTag.value = tag
+  load()
+}
+
+function clearTagFilter() {
+  filterTag.value = ''
+  load()
+}
+
+function onFilterTag(tag) {
+  detailId.value = null
+  filterTag.value = tag
   load()
 }
 

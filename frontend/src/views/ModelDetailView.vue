@@ -55,7 +55,8 @@
           <div class="flex flex-wrap gap-1.5 items-center mt-2">
             <span v-for="tag in editTags" :key="tag"
               class="flex items-center gap-1 text-xs bg-gray-800 text-gray-300 pl-2 pr-1 py-1 rounded-full">
-              {{ tag }}
+              <button @click="emit('filter-tag', tag); emit('back')"
+                class="hover:text-orange-400 transition-colors">{{ tag }}</button>
               <button @click="removeTag(tag)" class="text-gray-500 hover:text-red-400 leading-none">×</button>
             </span>
             <div v-if="addingTag" class="flex items-center gap-1">
@@ -113,6 +114,18 @@
           <textarea v-model="notesText" rows="5" placeholder="Eigene Notizen zum Modell…"
             class="w-full h-full min-h-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-orange-400 resize-none"
             @blur="saveNotes" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Print settings (full width) -->
+    <div v-if="printSettings.length" class="mb-6">
+      <h3 class="text-xs text-gray-500 uppercase tracking-wide mb-3">Druckeinstellungen</h3>
+      <div class="flex flex-wrap gap-2">
+        <div v-for="s in printSettings" :key="s.key"
+          class="flex items-center gap-1.5 bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5">
+          <span class="text-xs text-gray-500">{{ s.label }}</span>
+          <span class="text-xs text-gray-200 font-medium">{{ s.value }}</span>
         </div>
       </div>
     </div>
@@ -257,7 +270,7 @@ import {
 import Model3DViewer from '../components/Model3DViewer.vue'
 
 const props = defineProps({ modelId: Number })
-const emit = defineEmits(['back', 'deleted'])
+const emit = defineEmits(['back', 'deleted', 'filter-tag'])
 
 const model = ref(null)
 const activeImage = ref(null)
@@ -326,6 +339,30 @@ const platformLabel = computed(() => {
 const availableCollections = computed(() =>
   allCollections.value.filter(c => !modelCollections.value.find(mc => mc.id === c.id))
 )
+
+const PRINT_SETTINGS_LABELS = {
+  layer_height: 'Layer-Höhe',
+  infill: 'Infill',
+  material: 'Material',
+  support: 'Stützen',
+  print_time: 'Druckzeit',
+  nozzle: 'Düse',
+  bed_temp: 'Bett-Temp.',
+  hotend_temp: 'Hotend-Temp.',
+  filament: 'Filament',
+  speed: 'Geschwindigkeit',
+}
+const printSettings = computed(() => {
+  const ps = model.value?.print_settings
+  if (!ps || typeof ps !== 'object') return []
+  return Object.entries(ps)
+    .filter(([, v]) => v !== null && v !== '' && v !== undefined)
+    .map(([k, v]) => ({
+      key: k,
+      label: PRINT_SETTINGS_LABELS[k] || k,
+      value: String(v),
+    }))
+})
 
 // Tags
 async function startAddTag() {

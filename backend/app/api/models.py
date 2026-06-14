@@ -59,15 +59,22 @@ async def list_models(
     q: Optional[str] = None,
     platform: Optional[str] = None,
     tag: Optional[str] = None,
+    sort: Optional[str] = None,
     skip: int = 0,
     limit: int = 48,
     db: AsyncSession = Depends(get_db),
     _user: User = auth,
 ):
+    order = {
+        'date_asc':   Model.created_at.asc(),
+        'title_asc':  Model.title.asc(),
+        'title_desc': Model.title.desc(),
+    }.get(sort, Model.created_at.desc())
+
     stmt = select(Model).options(
         selectinload(Model.files),
         selectinload(Model.model_tags).selectinload(ModelTag.tag),
-    ).order_by(Model.created_at.desc())
+    ).order_by(order)
 
     if q:
         stmt = stmt.where(or_(

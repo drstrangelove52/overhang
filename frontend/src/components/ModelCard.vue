@@ -31,7 +31,8 @@
         <span
           v-for="tag in model.tags.slice(0, 3)"
           :key="tag"
-          class="text-xs bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded"
+          class="text-xs bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded hover:bg-orange-500/20 hover:text-orange-300 transition-colors"
+          @click.stop="$emit('tag-click', tag)"
         >{{ tag }}</span>
       </div>
     </div>
@@ -42,7 +43,7 @@
 import { computed } from 'vue'
 
 const props = defineProps({ model: Object })
-defineEmits(['click'])
+defineEmits(['click', 'tag-click'])
 
 const platformLabel = computed(() => {
   const map = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld' }
