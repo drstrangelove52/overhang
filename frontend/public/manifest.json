@@ -1,0 +1,12 @@
+{
+  "name": "Overhang — 3D Model Library",
+  "short_name": "Overhang",
+  "description": "Persönliche 3D-Druckmodell-Bibliothek",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#111827",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

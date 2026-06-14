@@ -25,7 +25,7 @@
     </div>
 
     <!-- 2-column: image gallery + tags/collections/notes -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       <!-- Image gallery -->
       <div>
         <div class="aspect-[4/3] bg-gray-800 rounded-xl overflow-hidden">

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#111827"/>
+  <g transform="translate(256,256)">
+    <!-- cube top face -->
+    <polygon points="0,-110 95,-55 0,0 -95,-55" fill="#f97316"/>
+    <!-- cube left face -->
+    <polygon points="-95,-55 0,0 0,110 -95,55" fill="#c2410c"/>
+    <!-- cube right face -->
+    <polygon points="95,-55 0,0 0,110 95,55" fill="#ea580c"/>
+  </g>
+</svg>
