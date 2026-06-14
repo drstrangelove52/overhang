@@ -77,6 +77,23 @@ export async function testCredential(_platform) {
   return r.data
 }
 
+// Admin
+export async function adminListUsers() {
+  const r = await api.get('/admin/users')
+  return r.data
+}
+export async function adminCreateUser(data) {
+  const r = await api.post('/admin/users', data)
+  return r.data
+}
+export async function adminUpdateUser(id, data) {
+  const r = await api.patch(`/admin/users/${id}`, data)
+  return r.data
+}
+export async function adminDeleteUser(id) {
+  await api.delete(`/admin/users/${id}`)
+}
+
 // Collections
 export async function listCollections() {
   const r = await api.get('/collections')

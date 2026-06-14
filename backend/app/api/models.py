@@ -32,17 +32,17 @@ class JobStatus(BaseModel):
     error: Optional[str] = None
 
 @router.post('/import', response_model=ImportResponse)
-async def import_model(req: ImportRequest, db: AsyncSession = Depends(get_db), _user: User = auth):
+async def import_model(req: ImportRequest, db: AsyncSession = Depends(get_db), user: User = auth):
     platform = detect_platform(req.url)
     if platform == 'unknown':
         raise HTTPException(400, 'URL nicht erkannt. Unterstützt: printables.com, thingiverse.com, makerworld.com')
 
-    existing = (await db.execute(select(Model).where(Model.source_url == req.url))).scalar_one_or_none()
+    existing = (await db.execute(select(Model).where(Model.source_url == req.url, Model.user_id == user.id))).scalar_one_or_none()
     if existing:
         raise HTTPException(409, f'Bereits importiert: „{existing.title}"')
 
     from app.tasks.scrape import scrape_model
-    job = scrape_model.delay(req.url)
+    job = scrape_model.delay(req.url, user.id)
     return ImportResponse(job_id=job.id, platform=platform, message=f'Import gestartet ({platform})')
 
 @router.get('/jobs/{job_id}', response_model=JobStatus)
@@ -63,7 +63,7 @@ async def list_models(
     skip: int = 0,
     limit: int = 48,
     db: AsyncSession = Depends(get_db),
-    _user: User = auth,
+    user: User = auth,
 ):
     order = {
         'date_asc':   Model.created_at.asc(),
@@ -74,7 +74,7 @@ async def list_models(
     stmt = select(Model).options(
         selectinload(Model.files),
         selectinload(Model.model_tags).selectinload(ModelTag.tag),
-    ).order_by(order)
+    ).where(Model.user_id == user.id).order_by(order)
 
     if q:
         stmt = stmt.where(or_(
@@ -98,8 +98,8 @@ async def list_models(
     }
 
 @router.get('/{model_id}')
-async def get_model(model_id: int, db: AsyncSession = Depends(get_db), _user: User = auth):
-    stmt = select(Model).where(Model.id == model_id).options(
+async def get_model(model_id: int, db: AsyncSession = Depends(get_db), user: User = auth):
+    stmt = select(Model).where(Model.id == model_id, Model.user_id == user.id).options(
         selectinload(Model.files),
         selectinload(Model.model_tags).selectinload(ModelTag.tag),
     )
@@ -149,8 +149,8 @@ def _save_file_record(db, model_id: int, filename: str, data: bytes, storage_pat
 
 
 @router.post('/{model_id}/files', status_code=201)
-async def upload_file(model_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _user: User = auth):
-    model = (await db.execute(select(Model).where(Model.id == model_id))).scalar_one_or_none()
+async def upload_file(model_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: User = auth):
+    model = (await db.execute(select(Model).where(Model.id == model_id, Model.user_id == user.id))).scalar_one_or_none()
     if not model:
         raise HTTPException(404, 'Modell nicht gefunden')
 
@@ -198,8 +198,8 @@ async def upload_file(model_id: int, file: UploadFile = File(...), db: AsyncSess
 
 
 @router.patch('/{model_id}/tags')
-async def set_model_tags(model_id: int, body: dict, db: AsyncSession = Depends(get_db), _user: User = auth):
-    model = (await db.execute(select(Model).where(Model.id == model_id))).scalar_one_or_none()
+async def set_model_tags(model_id: int, body: dict, db: AsyncSession = Depends(get_db), user: User = auth):
+    model = (await db.execute(select(Model).where(Model.id == model_id, Model.user_id == user.id))).scalar_one_or_none()
     if not model:
         raise HTTPException(404, 'Modell nicht gefunden')
     existing = (await db.execute(select(ModelTag).where(ModelTag.model_id == model_id))).scalars().all()
@@ -221,8 +221,8 @@ async def set_model_tags(model_id: int, body: dict, db: AsyncSession = Depends(g
 
 
 @router.patch('/{model_id}/notes')
-async def set_model_notes(model_id: int, body: dict, db: AsyncSession = Depends(get_db), _user: User = auth):
-    model = (await db.execute(select(Model).where(Model.id == model_id))).scalar_one_or_none()
+async def set_model_notes(model_id: int, body: dict, db: AsyncSession = Depends(get_db), user: User = auth):
+    model = (await db.execute(select(Model).where(Model.id == model_id, Model.user_id == user.id))).scalar_one_or_none()
     if not model:
         raise HTTPException(404, 'Modell nicht gefunden')
     model.notes = body.get('notes', '')
@@ -231,9 +231,8 @@ async def set_model_notes(model_id: int, body: dict, db: AsyncSession = Depends(
 
 
 @router.delete('/{model_id}', status_code=204)
-async def delete_model(model_id: int, db: AsyncSession = Depends(get_db), _user: User = auth):
-    stmt = select(Model).where(Model.id == model_id)
-    model = (await db.execute(stmt)).scalar_one_or_none()
+async def delete_model(model_id: int, db: AsyncSession = Depends(get_db), user: User = auth):
+    model = (await db.execute(select(Model).where(Model.id == model_id, Model.user_id == user.id))).scalar_one_or_none()
     if not model:
         raise HTTPException(404, 'Modell nicht gefunden')
     await db.delete(model)
@@ -241,7 +240,7 @@ async def delete_model(model_id: int, db: AsyncSession = Depends(get_db), _user:
 
 
 @router.delete('/{model_id}/files', status_code=200)
-async def delete_files(model_id: int, body: dict, db: AsyncSession = Depends(get_db), _user: User = auth):
+async def delete_files(model_id: int, body: dict, db: AsyncSession = Depends(get_db), user: User = auth):
     file_ids: list[int] = body.get('file_ids', [])
     if not file_ids:
         raise HTTPException(400, 'Keine Datei-IDs angegeben')

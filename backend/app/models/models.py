@@ -12,13 +12,18 @@ class User(Base):
     email = Column(String(255), unique=True)
     hashed_password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
+
+    models = relationship('Model', back_populates='user', cascade='all, delete-orphan', passive_deletes=True)
+    collections = relationship('Collection', back_populates='user', cascade='all, delete-orphan', passive_deletes=True)
 
 
 class Model(Base):
     __tablename__ = 'models'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
     title = Column(String(500), nullable=False)
     description = Column(Text)
     source_url = Column(String(2000))
@@ -31,6 +36,7 @@ class Model(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    user = relationship('User', back_populates='models')
     files = relationship('ModelFile', back_populates='model', cascade='all, delete-orphan')
     model_tags = relationship('ModelTag', back_populates='model', cascade='all, delete-orphan')
     collection_models = relationship('CollectionModel', back_populates='model', cascade='all, delete-orphan')
@@ -74,11 +80,13 @@ class Collection(Base):
     __tablename__ = 'collections'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    user = relationship('User', back_populates='collections')
     collection_models = relationship('CollectionModel', back_populates='collection', cascade='all, delete-orphan')
 
 

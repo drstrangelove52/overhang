@@ -30,7 +30,6 @@ def _col_to_dict(c: Collection, include_models: bool = False) -> dict:
         items = sorted(c.collection_models, key=lambda cm: cm.position)
         d['models'] = [_cm_to_dict(cm) for cm in items]
     else:
-        # Preview: first 4 cover images
         previews = []
         for cm in sorted(c.collection_models, key=lambda x: x.position)[:4]:
             if cm.model and cm.model.files:
@@ -58,9 +57,9 @@ def _cm_to_dict(cm: CollectionModel) -> dict:
 
 
 @router.get('')
-async def list_collections(db: AsyncSession = Depends(get_db), _user: User = auth):
+async def list_collections(db: AsyncSession = Depends(get_db), user: User = auth):
     result = await db.execute(
-        select(Collection).options(
+        select(Collection).where(Collection.user_id == user.id).options(
             selectinload(Collection.collection_models)
             .selectinload(CollectionModel.model)
             .selectinload(Model.files)
@@ -70,8 +69,8 @@ async def list_collections(db: AsyncSession = Depends(get_db), _user: User = aut
 
 
 @router.post('', status_code=201)
-async def create_collection(body: CollectionCreate, db: AsyncSession = Depends(get_db), _user: User = auth):
-    c = Collection(name=body.name.strip(), description=body.description)
+async def create_collection(body: CollectionCreate, db: AsyncSession = Depends(get_db), user: User = auth):
+    c = Collection(user_id=user.id, name=body.name.strip(), description=body.description)
     db.add(c)
     await db.commit()
     await db.refresh(c)
@@ -79,9 +78,9 @@ async def create_collection(body: CollectionCreate, db: AsyncSession = Depends(g
 
 
 @router.get('/{col_id}')
-async def get_collection(col_id: int, db: AsyncSession = Depends(get_db), _user: User = auth):
+async def get_collection(col_id: int, db: AsyncSession = Depends(get_db), user: User = auth):
     c = (await db.execute(
-        select(Collection).where(Collection.id == col_id).options(
+        select(Collection).where(Collection.id == col_id, Collection.user_id == user.id).options(
             selectinload(Collection.collection_models)
             .selectinload(CollectionModel.model)
             .options(
@@ -96,8 +95,8 @@ async def get_collection(col_id: int, db: AsyncSession = Depends(get_db), _user:
 
 
 @router.patch('/{col_id}')
-async def update_collection(col_id: int, body: CollectionCreate, db: AsyncSession = Depends(get_db), _user: User = auth):
-    c = (await db.execute(select(Collection).where(Collection.id == col_id))).scalar_one_or_none()
+async def update_collection(col_id: int, body: CollectionCreate, db: AsyncSession = Depends(get_db), user: User = auth):
+    c = (await db.execute(select(Collection).where(Collection.id == col_id, Collection.user_id == user.id))).scalar_one_or_none()
     if not c:
         raise HTTPException(404, 'Sammlung nicht gefunden')
     c.name = body.name.strip()
@@ -107,8 +106,8 @@ async def update_collection(col_id: int, body: CollectionCreate, db: AsyncSessio
 
 
 @router.delete('/{col_id}', status_code=204)
-async def delete_collection(col_id: int, db: AsyncSession = Depends(get_db), _user: User = auth):
-    c = (await db.execute(select(Collection).where(Collection.id == col_id))).scalar_one_or_none()
+async def delete_collection(col_id: int, db: AsyncSession = Depends(get_db), user: User = auth):
+    c = (await db.execute(select(Collection).where(Collection.id == col_id, Collection.user_id == user.id))).scalar_one_or_none()
     if not c:
         raise HTTPException(404, 'Sammlung nicht gefunden')
     await db.delete(c)
@@ -116,11 +115,11 @@ async def delete_collection(col_id: int, db: AsyncSession = Depends(get_db), _us
 
 
 @router.post('/{col_id}/models/{model_id}', status_code=201)
-async def add_model_to_collection(col_id: int, model_id: int, db: AsyncSession = Depends(get_db), _user: User = auth):
-    c = (await db.execute(select(Collection).where(Collection.id == col_id))).scalar_one_or_none()
+async def add_model_to_collection(col_id: int, model_id: int, db: AsyncSession = Depends(get_db), user: User = auth):
+    c = (await db.execute(select(Collection).where(Collection.id == col_id, Collection.user_id == user.id))).scalar_one_or_none()
     if not c:
         raise HTTPException(404, 'Sammlung nicht gefunden')
-    m = (await db.execute(select(Model).where(Model.id == model_id))).scalar_one_or_none()
+    m = (await db.execute(select(Model).where(Model.id == model_id, Model.user_id == user.id))).scalar_one_or_none()
     if not m:
         raise HTTPException(404, 'Modell nicht gefunden')
     existing = (await db.execute(
@@ -128,7 +127,6 @@ async def add_model_to_collection(col_id: int, model_id: int, db: AsyncSession =
     )).scalar_one_or_none()
     if existing:
         return {'ok': True, 'already_present': True}
-    # Position = current max + 1
     max_pos = (await db.execute(
         select(CollectionModel).where(CollectionModel.collection_id == col_id)
     )).scalars().all()
@@ -139,7 +137,7 @@ async def add_model_to_collection(col_id: int, model_id: int, db: AsyncSession =
 
 
 @router.delete('/{col_id}/models/{model_id}', status_code=204)
-async def remove_model_from_collection(col_id: int, model_id: int, db: AsyncSession = Depends(get_db), _user: User = auth):
+async def remove_model_from_collection(col_id: int, model_id: int, db: AsyncSession = Depends(get_db), user: User = auth):
     cm = (await db.execute(
         select(CollectionModel).where(CollectionModel.collection_id == col_id, CollectionModel.model_id == model_id)
     )).scalar_one_or_none()

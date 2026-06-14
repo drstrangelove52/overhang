@@ -12,11 +12,13 @@ auth = Depends(get_current_user)
 
 
 @router.get('')
-async def list_tags(db: AsyncSession = Depends(get_db), _user: User = auth):
-    """All tags with model count."""
+async def list_tags(db: AsyncSession = Depends(get_db), user: User = auth):
+    """Tags used by the current user's models."""
     result = await db.execute(
         select(Tag, func.count(ModelTag.model_id).label('count'))
-        .outerjoin(ModelTag)
+        .join(ModelTag)
+        .join(Model, ModelTag.model_id == Model.id)
+        .where(Model.user_id == user.id)
         .group_by(Tag.id)
         .order_by(Tag.name)
     )

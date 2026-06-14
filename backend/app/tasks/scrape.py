@@ -17,16 +17,16 @@ def _make_session():
 
 
 @celery_app.task(bind=True, name='scrape_model')
-def scrape_model(self, url: str) -> dict:
+def scrape_model(self, url: str, user_id: int = None) -> dict:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(_scrape_model_async(self, url))
+        return loop.run_until_complete(_scrape_model_async(self, url, user_id))
     finally:
         loop.close()
 
 
-async def _scrape_model_async(task, url: str) -> dict:
+async def _scrape_model_async(task, url: str, user_id: int = None) -> dict:
     platform = detect_platform(url)
 
     if platform == 'printables':
@@ -60,6 +60,7 @@ async def _scrape_model_async(task, url: str) -> dict:
 
     async with AsyncSessionLocal() as db:
         model = Model(
+            user_id=user_id,
             title=scraped.title,
             description=scraped.description,
             source_url=scraped.source_url,

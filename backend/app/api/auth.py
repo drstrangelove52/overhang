@@ -32,6 +32,7 @@ class TokenResponse(BaseModel):
     token_type: str
     username: str
     is_admin: bool
+    user_id: int
 
 
 def hash_password(password: str) -> str:
@@ -57,10 +58,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Benutzer nicht gefunden')
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Account nicht freigeschaltet')
     return user
 
 
-@router.post('/register', response_model=TokenResponse)
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    if not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Admin-Rechte erforderlich')
+    return user
+
+
+@router.post('/register')
 async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     existing = (await db.execute(select(User).where(User.username == req.username))).scalar_one_or_none()
     if existing:
@@ -68,24 +77,30 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     if len(req.password) < 8:
         raise HTTPException(400, 'Passwort muss mindestens 8 Zeichen haben')
 
-    # First registered user becomes admin
-    count = (await db.execute(select(User))).scalars().first()
-    is_admin = count is None
+    # First registered user becomes admin and is immediately active
+    first_user = (await db.execute(select(User))).scalars().first()
+    is_first = first_user is None
 
     user = User(
         username=req.username,
         email=req.email,
         hashed_password=hash_password(req.password),
-        is_admin=is_admin,
+        is_admin=is_first,
+        is_active=is_first,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    if not user.is_active:
+        return {'pending': True, 'message': 'Dein Account wartet auf Freischaltung durch den Administrator.'}
+
     return TokenResponse(
         access_token=create_token(user.id, user.username),
         token_type='bearer',
         username=user.username,
         is_admin=user.is_admin,
+        user_id=user.id,
     )
 
 
@@ -94,11 +109,14 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
     user = (await db.execute(select(User).where(User.username == form.username))).scalar_one_or_none()
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Falscher Benutzername oder Passwort')
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Dein Account wurde noch nicht freigeschaltet. Bitte wende dich an den Administrator.')
     return TokenResponse(
         access_token=create_token(user.id, user.username),
         token_type='bearer',
         username=user.username,
         is_admin=user.is_admin,
+        user_id=user.id,
     )
 
 

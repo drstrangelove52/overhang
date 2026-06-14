@@ -6,12 +6,26 @@
         <p class="text-gray-500 text-sm mt-1">3D Model Library</p>
       </div>
 
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <!-- Pending approval screen -->
+      <div v-if="pending" class="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
+        <div class="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-4">
+          <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <h2 class="font-semibold text-white mb-2">Account erstellt</h2>
+        <p class="text-sm text-gray-400 mb-6">Dein Account wartet auf Freischaltung durch den Administrator.</p>
+        <button @click="pending = false; tab = 'login'" class="text-sm text-orange-400 hover:text-orange-300">
+          Zur Anmeldung
+        </button>
+      </div>
+
+      <div v-else class="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <!-- Tab toggle -->
         <div class="flex bg-gray-800 rounded-lg p-1 mb-6">
           <button
             v-for="t in ['login', 'register']" :key="t"
-            @click="tab = t"
+            @click="tab = t; error = ''"
             class="flex-1 py-1.5 text-sm rounded-md transition-colors"
             :class="tab === t ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'"
           >
@@ -63,6 +77,7 @@ const auth = useAuthStore()
 const tab = ref('login')
 const loading = ref(false)
 const error = ref('')
+const pending = ref(false)
 const form = reactive({ username: '', email: '', password: '' })
 
 async function submit() {
@@ -81,6 +96,10 @@ async function submit() {
         email: form.email || undefined,
       })
       data = r.data
+      if (data.pending) {
+        pending.value = true
+        return
+      }
     }
     auth.setAuth(data)
     emit('logged-in')
