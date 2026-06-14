@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 from celery.result import AsyncResult
 from pathlib import Path
-import os, shutil, zipfile, io
+import os, shutil, zipfile, io, re
 
 from app.models.database import get_db
 from app.models.models import Model, ModelFile, Tag, ModelTag, User, Collection, CollectionModel
@@ -105,6 +105,15 @@ _IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 _ALLOWED_EXTS = {'.stl', '.3mf', '.gcode', '.bgcode', '.step', '.obj'} | _IMAGE_EXTS
 
 
+def _safe_filename(name: str) -> str:
+    stem = Path(name).stem
+    ext = Path(name).suffix.lower()
+    stem = re.sub(r'[\s]+', '_', stem)          # spaces → underscore
+    stem = re.sub(r'[^\w\-.]', '', stem)         # remove everything except word chars, dash, dot
+    stem = stem.strip('._') or 'file'
+    return stem + ext
+
+
 def _classify(filename: str) -> str:
     ext = Path(filename).suffix.lower()
     if ext == '.3mf':
@@ -156,8 +165,8 @@ async def upload_file(model_id: int, file: UploadFile = File(...), db: AsyncSess
             ext = Path(entry.filename).suffix.lower()
             if ext not in _ALLOWED_EXTS:
                 continue
-            # prevent path traversal
-            safe_name = Path(entry.filename).name
+            # prevent path traversal, sanitize filename
+            safe_name = _safe_filename(Path(entry.filename).name)
             if not safe_name:
                 continue
             data = zf.read(entry.filename)
@@ -174,7 +183,7 @@ async def upload_file(model_id: int, file: UploadFile = File(...), db: AsyncSess
         }
 
     # Single file upload
-    mf = _save_file_record(db, model_id, file.filename, raw, storage_root)
+    mf = _save_file_record(db, model_id, _safe_filename(file.filename), raw, storage_root)
     db.add(mf)
     await db.commit()
     await db.refresh(mf)
