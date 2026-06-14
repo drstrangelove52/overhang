@@ -14,6 +14,11 @@
             :class="screen === 'collections' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'">
             Sammlungen
           </button>
+          <button @click="screen = 'settings'"
+            class="px-3 py-1.5 text-sm rounded-lg transition-colors"
+            :class="screen === 'settings' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'">
+            Einstellungen
+          </button>
         </div>
         <div class="ml-auto flex items-center gap-3">
           <span class="text-sm text-gray-400 hidden sm:inline">{{ auth.username }}</span>
@@ -25,6 +30,7 @@
       <main class="p-6">
         <LibraryView v-if="screen === 'library'" @open-model="openModel" />
         <CollectionsView v-else-if="screen === 'collections'" @open-model="openModel" />
+        <SettingsView v-else-if="screen === 'settings'" />
       </main>
     </template>
 
@@ -37,6 +43,7 @@ import { ref } from 'vue'
 import { useAuthStore } from './stores/auth.js'
 import LibraryView from './views/LibraryView.vue'
 import CollectionsView from './views/CollectionsView.vue'
+import SettingsView from './views/SettingsView.vue'
 import LoginView from './views/LoginView.vue'
 
 const auth = useAuthStore()

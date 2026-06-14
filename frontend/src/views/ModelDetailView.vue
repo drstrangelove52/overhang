@@ -149,6 +149,23 @@
           </p>
         </div>
 
+        <!-- File drop zone -->
+        <div class="mt-4">
+          <div
+            @dragover.prevent="dropActive = true"
+            @dragleave="dropActive = false"
+            @drop.prevent="onDrop"
+            class="border-2 border-dashed rounded-xl px-4 py-5 text-center text-sm transition-colors cursor-pointer"
+            :class="dropActive ? 'border-orange-400 bg-orange-500/10 text-orange-300' : 'border-gray-700 text-gray-600 hover:border-gray-600'"
+            @click="$refs.fileInput.click()"
+          >
+            <span v-if="uploading">Lädt hoch…</span>
+            <span v-else>STL / 3MF hier ablegen oder klicken</span>
+          </div>
+          <input ref="fileInput" type="file" multiple accept=".stl,.3mf,.zip" class="hidden" @change="onFileInput" />
+          <p v-if="uploadError" class="text-red-400 text-xs mt-1">{{ uploadError }}</p>
+        </div>
+
         <!-- Delete -->
         <div class="mt-6 pt-4 border-t border-gray-800">
           <button v-if="!confirmDelete" @click="confirmDelete = true" class="text-sm text-red-500 hover:text-red-400">
@@ -179,7 +196,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import {
-  getModel, deleteModel, setModelTags, setModelNotes,
+  getModel, deleteModel, setModelTags, setModelNotes, uploadFile,
   listCollections, addModelToCollection, removeModelFromCollection, createCollection
 } from '../api.js'
 
@@ -203,6 +220,9 @@ const colPickerOpen = ref(false)
 const colDropdown = ref(null)
 const notesSaved = ref(false)
 const notesText = ref('')
+const dropActive = ref(false)
+const uploading = ref(false)
+const uploadError = ref('')
 
 onMounted(async () => {
   model.value = await getModel(props.modelId)
@@ -291,6 +311,28 @@ async function saveNotes() {
 function formatSize(bytes) {
   if (bytes > 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB'
   return (bytes / 1024).toFixed(0) + ' KB'
+}
+
+async function onDrop(e) {
+  dropActive.value = false
+  await uploadFiles(Array.from(e.dataTransfer.files))
+}
+async function onFileInput(e) {
+  await uploadFiles(Array.from(e.target.files))
+  e.target.value = ''
+}
+async function uploadFiles(files) {
+  uploading.value = true
+  uploadError.value = ''
+  for (const file of files) {
+    try {
+      const mf = await uploadFile(props.modelId, file)
+      model.value.files.push({ ...mf, is_primary_preview: false })
+    } catch (e) {
+      uploadError.value = e.response?.data?.detail || `Upload fehlgeschlagen: ${file.name}`
+    }
+  }
+  uploading.value = false
 }
 
 async function doDelete() {

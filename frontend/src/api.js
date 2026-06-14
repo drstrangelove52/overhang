@@ -51,6 +51,33 @@ export async function listTags() {
   return r.data
 }
 
+// File upload
+export async function uploadFile(modelId, file, onProgress) {
+  const form = new FormData()
+  form.append('file', file)
+  const r = await api.post(`/models/${modelId}/files`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: onProgress,
+  })
+  return r.data
+}
+
+// Credentials
+export async function listCredentials() {
+  const r = await api.get('/credentials')
+  return r.data
+}
+export async function saveCredential(platform, username, password) {
+  await api.put(`/credentials/${platform}`, { username, password })
+}
+export async function deleteCredential(platform) {
+  await api.delete(`/credentials/${platform}`)
+}
+export async function testCredential(platform) {
+  const r = await api.post(`/credentials/${platform}/test`)
+  return r.data
+}
+
 // Collections
 export async function listCollections() {
   const r = await api.get('/collections')

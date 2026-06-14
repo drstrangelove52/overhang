@@ -82,6 +82,16 @@ class Collection(Base):
     collection_models = relationship('CollectionModel', back_populates='collection', cascade='all, delete-orphan')
 
 
+class PlatformCredential(Base):
+    __tablename__ = 'platform_credentials'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    platform = Column(String(100), nullable=False, unique=True)
+    credential_data = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class CollectionModel(Base):
     __tablename__ = 'collection_models'
 

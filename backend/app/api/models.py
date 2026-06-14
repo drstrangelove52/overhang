@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional
 from celery.result import AsyncResult
+from pathlib import Path
+import os, shutil
 
 from app.models.database import get_db
 from app.models.models import Model, ModelFile, Tag, ModelTag, User, Collection, CollectionModel
@@ -98,6 +100,34 @@ async def get_model(model_id: int, db: AsyncSession = Depends(get_db), _user: Us
     if not model:
         raise HTTPException(404, 'Modell nicht gefunden')
     return _model_to_dict(model)
+
+@router.post('/{model_id}/files', status_code=201)
+async def upload_file(model_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _user: User = auth):
+    model = (await db.execute(select(Model).where(Model.id == model_id))).scalar_one_or_none()
+    if not model:
+        raise HTTPException(404, 'Modell nicht gefunden')
+    storage_path = os.getenv('STORAGE_PATH', '/app/storage')
+    ext = Path(file.filename).suffix.lower()
+    file_type = '3mf' if ext == '.3mf' else 'stl' if ext == '.stl' else 'image' if ext in ('.jpg', '.jpeg', '.png', '.webp', '.gif') else 'other'
+    dest_dir = Path(storage_path) / str(model_id) / ('images' if file_type == 'image' else 'files')
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / file.filename
+    with dest.open('wb') as f:
+        shutil.copyfileobj(file.file, f)
+    size = dest.stat().st_size
+    mf = ModelFile(
+        model_id=model_id,
+        filename=file.filename,
+        file_type=file_type,
+        storage_path=str(dest.relative_to(storage_path)),
+        file_size=size,
+        is_primary_preview=False,
+    )
+    db.add(mf)
+    await db.commit()
+    await db.refresh(mf)
+    return {'id': mf.id, 'filename': mf.filename, 'file_type': mf.file_type, 'file_size': size, 'url': '/api/files/' + mf.storage_path}
+
 
 @router.patch('/{model_id}/tags')
 async def set_model_tags(model_id: int, body: dict, db: AsyncSession = Depends(get_db), _user: User = auth):

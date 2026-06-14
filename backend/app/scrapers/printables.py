@@ -35,16 +35,38 @@ def _stl_download_url(file_preview_path: str, filename: str) -> str | None:
     dir_path = "/".join(parts[:-1])
     return CDN_BASE + dir_path + "/" + filename
 
-async def scrape(url: str) -> ScrapedModel:
+async def _get_token(username: str, password: str) -> str | None:
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                GRAPHQL_URL,
+                json={'query': 'mutation Login($e:String!,$p:String!){login(username:$e,password:$p){token}}',
+                      'variables': {'e': username, 'p': password}},
+                headers={"Content-Type": "application/json"},
+            )
+            return resp.json().get('data', {}).get('login', {}).get('token')
+    except Exception:
+        return None
+
+
+async def scrape(url: str, credentials: dict | None = None) -> ScrapedModel:
     model_id = _extract_id(url)
     if not model_id:
         raise ValueError(f"Konnte keine Modell-ID aus URL extrahieren: {url}")
+
+    token = None
+    if credentials:
+        token = await _get_token(credentials['username'], credentials['password'])
+
+    gql_headers = {"Content-Type": "application/json", "User-Agent": "Overhang/1.0"}
+    if token:
+        gql_headers["Authorization"] = f"Bearer {token}"
 
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
             GRAPHQL_URL,
             json={"query": QUERY, "variables": {"id": model_id}},
-            headers={"Content-Type": "application/json", "User-Agent": "Overhang/1.0"},
+            headers=gql_headers,
         )
         resp.raise_for_status()
         data = resp.json()

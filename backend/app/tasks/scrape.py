@@ -38,8 +38,20 @@ async def _scrape_model_async(task, url: str) -> dict:
     else:
         raise ValueError(f'Plattform nicht unterstützt: {platform} ({url})')
 
+    # Look up stored credentials for this platform
+    from sqlalchemy import select as sa_select
+    from app.models.models import PlatformCredential
+    from app.utils.crypto import decrypt
+
+    AsyncSessionLocal2 = _make_session()
+    credentials = None
+    async with AsyncSessionLocal2() as cdb:
+        row = (await cdb.execute(sa_select(PlatformCredential).where(PlatformCredential.platform == platform))).scalar_one_or_none()
+        if row:
+            credentials = decrypt(row.credential_data)
+
     task.update_state(state='PROGRESS', meta={'step': 'scraping', 'platform': platform})
-    scraped = await scrape(url)
+    scraped = await scrape(url, credentials=credentials)
 
     from app.models.models import Model, ModelFile, Tag, ModelTag
     from sqlalchemy import select

@@ -20,10 +20,12 @@ from app.api.models import router as models_router
 from app.api.auth import router as auth_router
 from app.api.tags import router as tags_router
 from app.api.collections import router as collections_router
+from app.api.credentials import router as credentials_router
 app.include_router(auth_router)
 app.include_router(models_router)
 app.include_router(tags_router)
 app.include_router(collections_router)
+app.include_router(credentials_router)
 
 @app.get('/api/health')
 async def health():
