@@ -151,6 +151,18 @@
           <span class="text-sm truncate flex-1">{{ f.filename }}</span>
           <span v-if="f.file_size" class="text-xs text-gray-500 flex-shrink-0">{{ formatSize(f.file_size) }}</span>
 
+          <!-- 3D Preview (STL / 3MF / OBJ) -->
+          <button v-if="['stl','3mf'].includes(f.file_type) || f.filename.toLowerCase().endsWith('.obj')"
+            class="text-gray-500 hover:text-orange-400 transition-colors p-0.5 flex-shrink-0" title="3D-Vorschau"
+            @click.stop="viewer = { url: f.url, filename: f.filename }">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+          </button>
+
           <!-- Slicer dropdown (3MF only) -->
           <div v-if="f.file_type === '3mf'" class="relative flex-shrink-0" @click.stop>
             <button @click="slicerMenuOpen = slicerMenuOpen === f.id ? null : f.id"
@@ -226,6 +238,9 @@
         <button @click="confirmDelete = false" class="text-sm text-gray-500 hover:text-white">Abbrechen</button>
       </div>
     </div>
+
+    <!-- 3D Viewer Modal -->
+    <Model3DViewer v-if="viewer" :url="viewer.url" :filename="viewer.filename" @close="viewer = null" />
   </div>
 
   <div v-else class="flex items-center justify-center h-64">
@@ -239,6 +254,7 @@ import {
   getModel, deleteModel, setModelTags, setModelNotes, uploadFile, deleteFiles,
   listCollections, addModelToCollection, removeModelFromCollection, createCollection
 } from '../api.js'
+import Model3DViewer from '../components/Model3DViewer.vue'
 
 const props = defineProps({ modelId: Number })
 const emit = defineEmits(['back', 'deleted'])
@@ -266,6 +282,7 @@ const uploadProgress = ref(0)
 const uploadError = ref('')
 const selectedFiles = ref(new Set())
 const slicerMenuOpen = ref(null)
+const viewer = ref(null)
 
 const slicers = [
   { label: 'Bambu Studio', scheme: 'bambustudio' },
