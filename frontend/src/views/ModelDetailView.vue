@@ -168,13 +168,13 @@
                 </div>
               </div>
 
-              <!-- Download via HTTP to bypass self-signed cert block -->
-              <a :href="fileAbsUrl(f.url)" download class="text-gray-500 hover:text-white flex-shrink-0" @click.stop>
+              <!-- Download -->
+              <button @click.stop="downloadFile(f.url, f.filename)" class="text-gray-500 hover:text-white flex-shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
-              </a>
+              </button>
             </div>
           </div>
           <p v-else class="text-sm text-gray-600">
@@ -281,6 +281,23 @@ const slicers = [
 function fileAbsUrl(relUrl) {
   // Use plain HTTP so slicers don't reject the self-signed certificate
   return 'http://' + window.location.hostname + relUrl
+}
+
+async function downloadFile(relUrl, filename) {
+  // Use fetch so the browser's already-accepted cert exception applies.
+  // A plain <a href> download would be blocked by Chrome for self-signed certs.
+  try {
+    const resp = await fetch(relUrl)
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    alert('Download fehlgeschlagen: ' + e.message)
+  }
 }
 
 onMounted(async () => {
