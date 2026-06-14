@@ -62,19 +62,15 @@ export async function uploadFile(modelId, file, onProgress) {
   return r.data
 }
 
-// Credentials
-export async function listCredentials() {
-  const r = await api.get('/credentials')
-  return r.data
+// Credentials (Thingiverse only)
+export async function saveCredential(_platform, _username, token) {
+  await api.put('/credentials/thingiverse', { token })
 }
-export async function saveCredential(platform, username, password) {
-  await api.put(`/credentials/${platform}`, { username, password })
+export async function deleteCredential(_platform) {
+  await api.delete('/credentials/thingiverse')
 }
-export async function deleteCredential(platform) {
-  await api.delete(`/credentials/${platform}`)
-}
-export async function testCredential(platform) {
-  const r = await api.post(`/credentials/${platform}/test`)
+export async function testCredential(_platform) {
+  const r = await api.post('/credentials/thingiverse/test')
   return r.data
 }
 

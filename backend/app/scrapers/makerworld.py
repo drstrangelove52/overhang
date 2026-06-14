@@ -3,7 +3,6 @@ import re
 from app.scrapers.base import ScrapedModel, ScrapedFile
 
 API_BASE = "https://makerworld.com/api/v1/design-service/design"
-BAMBU_LOGIN_URL = "https://api.bambulab.com/v1/user-service/user/login"
 
 
 def _extract_id(url: str) -> str | None:
@@ -11,31 +10,16 @@ def _extract_id(url: str) -> str | None:
     return m.group(1) if m else None
 
 
-async def _get_token(username: str, password: str) -> str | None:
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(BAMBU_LOGIN_URL, json={'account': username, 'password': password})
-            return resp.json().get('accessToken')
-    except Exception:
-        return None
-
-
 async def scrape(url: str, credentials: dict | None = None) -> ScrapedModel:
     model_id = _extract_id(url)
     if not model_id:
         raise ValueError(f"Konnte keine Modell-ID aus URL extrahieren: {url}")
-
-    token = None
-    if credentials:
-        token = await _get_token(credentials['username'], credentials['password'])
 
     headers = {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
         "Accept": "application/json",
         "Referer": "https://makerworld.com/",
     }
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
 
     async with httpx.AsyncClient(timeout=30, headers=headers) as client:
         resp = await client.get(f"{API_BASE}/{model_id}")
@@ -85,45 +69,10 @@ async def scrape(url: str, credentials: dict | None = None) -> ScrapedModel:
                 minutes = pred // 60
                 print_settings["print_time"] = f"{minutes // 60}h {minutes % 60}min" if minutes >= 60 else f"{minutes}min"
 
-    # Try to get downloadable files when authenticated
-    files: list[ScrapedFile] = []
-    if token:
-        async with httpx.AsyncClient(timeout=30, headers=headers) as client:
-            for inst in d.get("instances", []):
-                inst_id = inst.get("id")
-                if not inst_id:
-                    continue
-                # Try download-url endpoint
-                try:
-                    r = await client.get(f"{API_BASE}/{model_id}/instance/{inst_id}/download-url")
-                    if r.status_code == 200:
-                        data = r.json()
-                        dl_url = data.get("url") or data.get("downloadUrl")
-                        if dl_url:
-                            fname = f"makerworld_{model_id}_{inst_id}.3mf"
-                            files.append(ScrapedFile(url=dl_url, filename=fname, file_type="3mf"))
-                            break
-                except Exception:
-                    pass
-                # Try zip-stl endpoint
-                if inst.get("hasZipStl"):
-                    try:
-                        r = await client.get(f"{API_BASE}/{model_id}/instance/{inst_id}/stl-zip")
-                        if r.status_code == 200:
-                            data = r.json()
-                            dl_url = data.get("url") or data.get("downloadUrl")
-                            if dl_url:
-                                files.append(ScrapedFile(url=dl_url, filename=f"makerworld_{model_id}_stls.zip", file_type="other"))
-                                break
-                    except Exception:
-                        pass
-
-    canonical_url = f"https://makerworld.com/models/{model_id}"
-
     return ScrapedModel(
         title=d.get("title", ""),
         description=d.get("summary") or "",
-        source_url=canonical_url,
+        source_url=f"https://makerworld.com/models/{model_id}",
         source_platform="makerworld",
         author=handle,
         author_url=author_url,
@@ -131,5 +80,5 @@ async def scrape(url: str, credentials: dict | None = None) -> ScrapedModel:
         tags=tags,
         print_settings=print_settings,
         images=images,
-        files=files,
+        files=[],
     )
