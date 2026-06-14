@@ -89,11 +89,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { saveCredential, deleteCredential, testCredential } from '../api.js'
 
-// CA cert is served over HTTP so it can be downloaded before cert is trusted
-const caUrl = computed(() => `http://${window.location.hostname}/overhang-ca.crt`)
+const caUrl = '/overhang-ca.crt'
 
 const token = ref('')
 const configured = ref(false)
