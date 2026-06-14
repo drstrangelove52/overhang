@@ -155,11 +155,20 @@
             @dragover.prevent="dropActive = true"
             @dragleave="dropActive = false"
             @drop.prevent="onDrop"
-            class="border-2 border-dashed rounded-xl px-4 py-5 text-center text-sm transition-colors cursor-pointer"
-            :class="dropActive ? 'border-orange-400 bg-orange-500/10 text-orange-300' : 'border-gray-700 text-gray-600 hover:border-gray-600'"
-            @click="$refs.fileInput.click()"
+            class="border-2 border-dashed rounded-xl px-4 py-5 text-center text-sm transition-colors"
+            :class="[
+              uploading ? 'border-gray-700 cursor-default' : 'cursor-pointer',
+              dropActive ? 'border-orange-400 bg-orange-500/10 text-orange-300' : 'border-gray-700 text-gray-600 hover:border-gray-600'
+            ]"
+            @click="!uploading && $refs.fileInput.click()"
           >
-            <span v-if="uploading">Lädt hoch…</span>
+            <template v-if="uploading">
+              <div class="text-gray-400 mb-2">{{ uploadProgress < 100 ? `Überträgt… ${uploadProgress}%` : 'Verarbeite…' }}</div>
+              <div class="w-full bg-gray-800 rounded-full h-2">
+                <div class="bg-orange-500 h-2 rounded-full transition-all duration-200"
+                     :style="{ width: uploadProgress + '%' }" />
+              </div>
+            </template>
             <span v-else>STL / 3MF / ZIP hier ablegen oder klicken</span>
           </div>
           <input ref="fileInput" type="file" multiple accept=".stl,.3mf,.zip" class="hidden" @change="onFileInput" />
@@ -222,6 +231,7 @@ const notesSaved = ref(false)
 const notesText = ref('')
 const dropActive = ref(false)
 const uploading = ref(false)
+const uploadProgress = ref(0)
 const uploadError = ref('')
 
 onMounted(async () => {
@@ -323,10 +333,14 @@ async function onFileInput(e) {
 }
 async function uploadFiles(files) {
   uploading.value = true
+  uploadProgress.value = 0
   uploadError.value = ''
   for (const file of files) {
     try {
-      const result = await uploadFile(props.modelId, file)
+      const result = await uploadFile(props.modelId, file, e => {
+        if (e.total) uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+      })
+      uploadProgress.value = 100
       // ZIP response: { extracted, files: [...] }
       if (result.extracted !== undefined) {
         for (const mf of result.files) {
@@ -343,6 +357,7 @@ async function uploadFiles(files) {
     }
   }
   uploading.value = false
+  uploadProgress.value = 0
 }
 
 async function doDelete() {
