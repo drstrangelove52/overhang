@@ -49,33 +49,47 @@
         Downloads und der Slicer-Import ohne Warnungen.
       </p>
 
-      <a :href="caUrl" download="overhang-ca.crt"
-        class="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-400 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-        </svg>
-        Zertifikat herunterladen
-      </a>
+      <!-- Step 1: Download -->
+      <div class="mb-5">
+        <p class="text-xs text-gray-500 uppercase tracking-wide mb-2">Schritt 1 — Zertifikat herunterladen</p>
+        <p class="text-sm text-gray-400 mb-3">
+          Öffne diese Adresse direkt in der Adressleiste deines Browsers
+          (funktioniert auch wenn die Seite noch als unsicher angezeigt wird):
+        </p>
+        <div class="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2">
+          <code class="text-sm text-orange-400 flex-1 select-all">{{ certDownloadUrl }}</code>
+          <button @click="copyCertUrl" class="text-xs text-gray-500 hover:text-white flex-shrink-0 transition-colors">
+            {{ copied ? 'Kopiert ✓' : 'Kopieren' }}
+          </button>
+        </div>
+        <p class="text-xs text-gray-600 mt-2">
+          Oder wenn du bereits auf dieser Seite bist:
+          <a :href="caUrl" download="overhang-ca.crt" class="text-orange-400 hover:underline">direkt herunterladen ↓</a>
+        </p>
+      </div>
 
-      <ol class="mt-5 space-y-3 text-sm text-gray-400">
-        <li class="flex gap-3">
-          <span class="flex-shrink-0 w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-xs flex items-center justify-center font-medium">1</span>
-          <span>Zertifikat herunterladen (Button oben)</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="flex-shrink-0 w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-xs flex items-center justify-center font-medium">2</span>
-          <span>Doppelklick auf die heruntergeladene <code class="text-orange-400">overhang-ca.crt</code></span>
-        </li>
-        <li class="flex gap-3">
-          <span class="flex-shrink-0 w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-xs flex items-center justify-center font-medium">3</span>
-          <span>→ <em>Zertifikat installieren</em> → <em>Lokaler Computer</em> → <em>Zertifikate in folgendem Speicher</em> → <strong class="text-gray-300">Vertrauenswürdige Stammzertifizierungsstellen</strong> → Fertig stellen</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="flex-shrink-0 w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-xs flex items-center justify-center font-medium">4</span>
-          <span>Browser neu starten — fertig</span>
-        </li>
-      </ol>
+      <!-- Steps 2-4: Install -->
+      <div>
+        <p class="text-xs text-gray-500 uppercase tracking-wide mb-2">Schritt 2 — Zertifikat installieren</p>
+        <ol class="space-y-2 text-sm text-gray-400">
+          <li class="flex gap-3">
+            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-xs flex items-center justify-center font-medium">1</span>
+            <span>Doppelklick auf die heruntergeladene <code class="text-orange-400">overhang-ca.crt</code></span>
+          </li>
+          <li class="flex gap-3">
+            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-xs flex items-center justify-center font-medium">2</span>
+            <span><em>Zertifikat installieren</em> → <em>Lokaler Computer</em> → Weiter</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-xs flex items-center justify-center font-medium">3</span>
+            <span><strong class="text-gray-300">Alle Zertifikate in folgendem Speicher speichern</strong> → Durchsuchen → <strong class="text-gray-300">Vertrauenswürdige Stammzertifizierungsstellen</strong> → OK → Weiter → Fertig stellen → Ja</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-xs flex items-center justify-center font-medium">4</span>
+            <span>Browser neu starten → <strong class="text-gray-300">fertig</strong></span>
+          </li>
+        </ol>
+      </div>
     </div>
 
     <!-- MakerWorld / Printables info -->
@@ -93,6 +107,13 @@ import { ref, onMounted } from 'vue'
 import { saveCredential, deleteCredential, testCredential } from '../api.js'
 
 const caUrl = '/overhang-ca.crt'
+const certDownloadUrl = `http://${window.location.hostname}/overhang-ca.crt`
+const copied = ref(false)
+function copyCertUrl() {
+  navigator.clipboard.writeText(certDownloadUrl)
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
 
 const token = ref('')
 const configured = ref(false)
