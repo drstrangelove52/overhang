@@ -209,10 +209,10 @@
       </div>
     </div>
 
-    <!-- MakerWorld / Printables info -->
+    <!-- Platform file download info -->
     <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-5 text-sm text-gray-500">
-      <p class="font-medium text-gray-400 mb-1">MakerWorld & Printables</p>
-      <p>Diese Plattformen verwenden 2FA — ein automatischer Login ist nicht möglich.
+      <p class="font-medium text-gray-400 mb-1">MakerWorld, Printables & Cults3d</p>
+      <p>Diese Plattformen erfordern einen Account für Datei-Downloads — ein automatischer Download ist nicht möglich.
         Dateien einfach auf der jeweiligen Plattform herunterladen und per
         <span class="text-gray-300">Drag & Drop</span> ins Modell ziehen.</p>
     </div>

@@ -35,7 +35,7 @@ class JobStatus(BaseModel):
 async def import_model(req: ImportRequest, db: AsyncSession = Depends(get_db), user: User = auth):
     platform = detect_platform(req.url)
     if platform == 'unknown':
-        raise HTTPException(400, 'URL nicht erkannt. Unterstützt: printables.com, thingiverse.com, makerworld.com')
+        raise HTTPException(400, 'URL nicht erkannt. Unterstützt: printables.com, thingiverse.com, makerworld.com, cults3d.com')
 
     existing = (await db.execute(select(Model).where(Model.source_url == req.url, Model.user_id == user.id))).scalar_one_or_none()
     if existing:

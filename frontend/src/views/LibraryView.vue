@@ -58,6 +58,7 @@
           <option value="printables">Printables</option>
           <option value="thingiverse">Thingiverse</option>
           <option value="makerworld">MakerWorld</option>
+          <option value="cults3d">Cults3d</option>
         </select>
         <select v-model="sortOrder" @change="load()"
           class="flex-1 sm:flex-none bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 text-gray-300">

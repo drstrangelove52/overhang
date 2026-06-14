@@ -46,7 +46,7 @@ const props = defineProps({ model: Object })
 defineEmits(['click', 'tag-click'])
 
 const platformLabel = computed(() => {
-  const map = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld' }
+  const map = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld', cults3d: 'Cults3d' }
   return map[props.model.source_platform] || props.model.source_platform || '?'
 })
 </script>

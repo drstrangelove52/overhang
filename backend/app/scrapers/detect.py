@@ -8,4 +8,6 @@ def detect_platform(url: str) -> str:
         return 'thingiverse'
     if 'makerworld.com' in host:
         return 'makerworld'
+    if 'cults3d.com' in host:
+        return 'cults3d'
     return 'unknown'
