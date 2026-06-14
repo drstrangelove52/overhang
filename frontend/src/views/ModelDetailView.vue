@@ -146,8 +146,8 @@
               <span class="text-sm truncate flex-1">{{ f.filename }}</span>
               <span v-if="f.file_size" class="text-xs text-gray-500 flex-shrink-0">{{ formatSize(f.file_size) }}</span>
 
-              <!-- Slicer dropdown -->
-              <div class="relative flex-shrink-0" @click.stop>
+              <!-- Slicer dropdown (3MF only) -->
+              <div v-if="f.file_type === '3mf'" class="relative flex-shrink-0" @click.stop>
                 <button @click="slicerMenuOpen = slicerMenuOpen === f.id ? null : f.id"
                   class="text-gray-500 hover:text-orange-400 transition-colors p-0.5" title="Im Slicer öffnen">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
