@@ -145,8 +145,31 @@
               <span class="text-xs font-mono text-orange-400 uppercase flex-shrink-0">{{ f.file_type }}</span>
               <span class="text-sm truncate flex-1">{{ f.filename }}</span>
               <span v-if="f.file_size" class="text-xs text-gray-500 flex-shrink-0">{{ formatSize(f.file_size) }}</span>
-              <a :href="f.url" download class="ml-1 text-gray-500 hover:text-white flex-shrink-0"
-                @click.stop>
+
+              <!-- Slicer dropdown -->
+              <div class="relative flex-shrink-0" @click.stop>
+                <button @click="slicerMenuOpen = slicerMenuOpen === f.id ? null : f.id"
+                  class="text-gray-500 hover:text-orange-400 transition-colors p-0.5" title="Im Slicer öffnen">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </button>
+                <div v-if="slicerMenuOpen === f.id"
+                  class="absolute right-0 top-6 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 w-40">
+                  <a v-for="slicer in slicers" :key="slicer.scheme"
+                    :href="`${slicer.scheme}://open?file=${encodeURIComponent(fileAbsUrl(f.url))}`"
+                    class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-700 text-gray-300 hover:text-white"
+                    @click="slicerMenuOpen = null">
+                    {{ slicer.label }}
+                  </a>
+                </div>
+              </div>
+
+              <!-- Download -->
+              <a :href="f.url" download class="text-gray-500 hover:text-white flex-shrink-0" @click.stop>
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -247,6 +270,17 @@ const uploading = ref(false)
 const uploadProgress = ref(0)
 const uploadError = ref('')
 const selectedFiles = ref(new Set())
+const slicerMenuOpen = ref(null)
+
+const slicers = [
+  { label: 'Bambu Studio',  scheme: 'bambustudio' },
+  { label: 'OrcaSlicer',    scheme: 'orcaslicer' },
+  { label: 'PrusaSlicer',   scheme: 'prusaslicer' },
+]
+
+function fileAbsUrl(relUrl) {
+  return window.location.origin + relUrl
+}
 
 onMounted(async () => {
   model.value = await getModel(props.modelId)
@@ -263,6 +297,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onOutsideClick))
 
 function onOutsideClick(e) {
   if (colDropdown.value && !colDropdown.value.contains(e.target)) colPickerOpen.value = false
+  slicerMenuOpen.value = null
 }
 
 function refreshModelCollections() {
