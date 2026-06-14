@@ -31,12 +31,29 @@
             </svg>
           </div>
         </div>
-        <div v-if="images.length > 1" class="flex gap-2 mt-2 overflow-x-auto pb-1">
+        <div v-if="images.length > 0" class="flex gap-2 mt-2 overflow-x-auto pb-1">
           <div v-for="img in images" :key="img.id"
-            class="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden cursor-pointer border-2 transition-colors"
+            class="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden cursor-pointer border-2 transition-colors group"
             :class="activeImage === img.url ? 'border-orange-400' : 'border-transparent'"
             @click="activeImage = img.url">
             <img :src="img.url" class="w-full h-full object-cover" />
+            <!-- Primary badge -->
+            <div v-if="img.is_primary_preview"
+              class="absolute top-0.5 left-0.5 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
+              <svg class="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+            </div>
+            <!-- Set primary button (hover) -->
+            <button v-else
+              class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              title="Als Cover setzen"
+              @click.stop="setPrimary(img.id)">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -258,7 +275,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import {
-  getModel, deleteModel, setModelTags, setModelNotes, uploadFile, deleteFiles,
+  getModel, deleteModel, setModelTags, setModelNotes, uploadFile, deleteFiles, setPrimaryImage,
   listCollections, addModelToCollection, removeModelFromCollection, createCollection
 } from '../api.js'
 import Model3DViewer from '../components/Model3DViewer.vue'
@@ -327,7 +344,7 @@ function refreshModelCollections() {
 const images = computed(() => (model.value?.files || []).filter(f => f.file_type === 'image'))
 const printFiles = computed(() => (model.value?.files || []).filter(f => f.file_type !== 'image'))
 const platformLabel = computed(() => {
-  const map = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld' }
+  const map = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld', cults3d: 'Cults3d' }
   return map[model.value?.source_platform] || model.value?.source_platform || '?'
 })
 const availableCollections = computed(() =>
@@ -459,6 +476,15 @@ async function uploadFiles(files) {
   }
   uploading.value = false
   uploadProgress.value = 0
+}
+
+async function setPrimary(fileId) {
+  await setPrimaryImage(props.modelId, fileId)
+  model.value.files.forEach(f => {
+    if (f.file_type === 'image') f.is_primary_preview = f.id === fileId
+  })
+  const primary = model.value.files.find(f => f.id === fileId)
+  if (primary) activeImage.value = primary.url
 }
 
 async function doDelete() {

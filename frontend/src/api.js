@@ -52,6 +52,9 @@ export async function listTags() {
 }
 
 // File upload / delete
+export async function setPrimaryImage(modelId, fileId) {
+  await api.patch(`/models/${modelId}/files/${fileId}/primary`)
+}
 export async function deleteFiles(modelId, fileIds) {
   await api.delete(`/models/${modelId}/files`, { data: { file_ids: fileIds } })
 }

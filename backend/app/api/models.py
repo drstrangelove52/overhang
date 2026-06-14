@@ -230,6 +230,21 @@ async def set_model_notes(model_id: int, body: dict, db: AsyncSession = Depends(
     return {'ok': True}
 
 
+@router.patch('/{model_id}/files/{file_id}/primary')
+async def set_primary_image(model_id: int, file_id: int, db: AsyncSession = Depends(get_db), user: User = auth):
+    model = (await db.execute(select(Model).where(Model.id == model_id, Model.user_id == user.id))).scalar_one_or_none()
+    if not model:
+        raise HTTPException(404, 'Modell nicht gefunden')
+    # Unset all images, then set the chosen one
+    all_images = (await db.execute(
+        select(ModelFile).where(ModelFile.model_id == model_id, ModelFile.file_type == 'image')
+    )).scalars().all()
+    for f in all_images:
+        f.is_primary_preview = (f.id == file_id)
+    await db.commit()
+    return {'ok': True}
+
+
 @router.delete('/{model_id}', status_code=204)
 async def delete_model(model_id: int, db: AsyncSession = Depends(get_db), user: User = auth):
     model = (await db.execute(select(Model).where(Model.id == model_id, Model.user_id == user.id))).scalar_one_or_none()
