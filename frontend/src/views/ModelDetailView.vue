@@ -160,7 +160,7 @@
             @click="$refs.fileInput.click()"
           >
             <span v-if="uploading">Lädt hoch…</span>
-            <span v-else>STL / 3MF hier ablegen oder klicken</span>
+            <span v-else>STL / 3MF / ZIP hier ablegen oder klicken</span>
           </div>
           <input ref="fileInput" type="file" multiple accept=".stl,.3mf,.zip" class="hidden" @change="onFileInput" />
           <p v-if="uploadError" class="text-red-400 text-xs mt-1">{{ uploadError }}</p>
@@ -326,8 +326,18 @@ async function uploadFiles(files) {
   uploadError.value = ''
   for (const file of files) {
     try {
-      const mf = await uploadFile(props.modelId, file)
-      model.value.files.push({ ...mf, is_primary_preview: false })
+      const result = await uploadFile(props.modelId, file)
+      // ZIP response: { extracted, files: [...] }
+      if (result.extracted !== undefined) {
+        for (const mf of result.files) {
+          model.value.files.push({ ...mf, is_primary_preview: false })
+        }
+        if (result.extracted === 0) {
+          uploadError.value = `${file.name}: Keine unterstützten Dateien in ZIP gefunden`
+        }
+      } else {
+        model.value.files.push({ ...result, is_primary_preview: false })
+      }
     } catch (e) {
       uploadError.value = e.response?.data?.detail || `Upload fehlgeschlagen: ${file.name}`
     }
