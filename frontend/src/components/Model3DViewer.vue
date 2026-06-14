@@ -104,6 +104,8 @@ onMounted(async () => {
 
   try {
     const object = await loadModel(ext, props.url)
+    // 3MF uses Z-up; Three.js uses Y-up
+    object.rotation.x = -Math.PI / 2
     scene.add(object)
     fitCamera(object)
     state.value = 'ready'
