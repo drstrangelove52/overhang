@@ -124,16 +124,29 @@
 
         <!-- Files -->
         <div class="mt-4">
-          <h3 class="text-sm font-medium text-gray-400 mb-2">Dateien</h3>
-          <div v-if="printFiles.length" class="space-y-2">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-medium text-gray-400">Dateien</h3>
+            <button v-if="selectedFiles.size > 0" @click="deleteSelected"
+              class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              {{ selectedFiles.size }} löschen
+            </button>
+          </div>
+          <div v-if="printFiles.length" class="space-y-1">
             <div v-for="f in printFiles" :key="f.id"
-              class="flex items-center justify-between bg-gray-800 rounded-lg px-3 py-2">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="text-xs font-mono text-orange-400 uppercase">{{ f.file_type }}</span>
-                <span class="text-sm truncate">{{ f.filename }}</span>
-                <span v-if="f.file_size" class="text-xs text-gray-500 flex-shrink-0">{{ formatSize(f.file_size) }}</span>
-              </div>
-              <a :href="f.url" download class="ml-2 text-gray-400 hover:text-white flex-shrink-0">
+              class="flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer transition-colors"
+              :class="selectedFiles.has(f.id) ? 'bg-red-900/20 border border-red-800' : 'bg-gray-800 border border-transparent hover:border-gray-700'"
+              @click="toggleSelect(f.id)">
+              <input type="checkbox" :checked="selectedFiles.has(f.id)"
+                class="accent-orange-500 flex-shrink-0 pointer-events-none" />
+              <span class="text-xs font-mono text-orange-400 uppercase flex-shrink-0">{{ f.file_type }}</span>
+              <span class="text-sm truncate flex-1">{{ f.filename }}</span>
+              <span v-if="f.file_size" class="text-xs text-gray-500 flex-shrink-0">{{ formatSize(f.file_size) }}</span>
+              <a :href="f.url" download class="ml-1 text-gray-500 hover:text-white flex-shrink-0"
+                @click.stop>
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -205,7 +218,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import {
-  getModel, deleteModel, setModelTags, setModelNotes, uploadFile,
+  getModel, deleteModel, setModelTags, setModelNotes, uploadFile, deleteFiles,
   listCollections, addModelToCollection, removeModelFromCollection, createCollection
 } from '../api.js'
 
@@ -233,6 +246,7 @@ const dropActive = ref(false)
 const uploading = ref(false)
 const uploadProgress = ref(0)
 const uploadError = ref('')
+const selectedFiles = ref(new Set())
 
 onMounted(async () => {
   model.value = await getModel(props.modelId)
@@ -321,6 +335,19 @@ async function saveNotes() {
 function formatSize(bytes) {
   if (bytes > 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB'
   return (bytes / 1024).toFixed(0) + ' KB'
+}
+
+function toggleSelect(id) {
+  const s = new Set(selectedFiles.value)
+  s.has(id) ? s.delete(id) : s.add(id)
+  selectedFiles.value = s
+}
+
+async function deleteSelected() {
+  const ids = [...selectedFiles.value]
+  await deleteFiles(props.modelId, ids)
+  model.value.files = model.value.files.filter(f => !ids.includes(f.id))
+  selectedFiles.value = new Set()
 }
 
 async function onDrop(e) {

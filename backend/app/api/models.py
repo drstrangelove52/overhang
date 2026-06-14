@@ -223,6 +223,26 @@ async def delete_model(model_id: int, db: AsyncSession = Depends(get_db), _user:
     await db.delete(model)
     await db.commit()
 
+
+@router.delete('/{model_id}/files', status_code=200)
+async def delete_files(model_id: int, body: dict, db: AsyncSession = Depends(get_db), _user: User = auth):
+    file_ids: list[int] = body.get('file_ids', [])
+    if not file_ids:
+        raise HTTPException(400, 'Keine Datei-IDs angegeben')
+    storage_root = Path(os.getenv('STORAGE_PATH', '/app/storage'))
+    rows = (await db.execute(
+        select(ModelFile).where(ModelFile.model_id == model_id, ModelFile.id.in_(file_ids))
+    )).scalars().all()
+    for row in rows:
+        try:
+            (storage_root / row.storage_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+        await db.delete(row)
+    await db.commit()
+    return {'deleted': len(rows)}
+
+
 def _model_to_dict(m: Model) -> dict:
     preview = next((f for f in m.files if f.is_primary_preview and f.file_type == 'image'), None)
     return {

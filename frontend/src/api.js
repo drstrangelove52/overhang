@@ -51,7 +51,10 @@ export async function listTags() {
   return r.data
 }
 
-// File upload
+// File upload / delete
+export async function deleteFiles(modelId, fileIds) {
+  await api.delete(`/models/${modelId}/files`, { data: { file_ids: fileIds } })
+}
 export async function uploadFile(modelId, file, onProgress) {
   const form = new FormData()
   form.append('file', file)
