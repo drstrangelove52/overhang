@@ -146,22 +146,21 @@ function fitCamera(object) {
   const box = new THREE.Box3().setFromObject(object)
   const center = box.getCenter(new THREE.Vector3())
   const size = box.getSize(new THREE.Vector3())
-  object.position.sub(center)
+
+  // Center on XZ, place bottom of model at y=0 so it rests on the grid
+  object.position.x -= center.x
+  object.position.y -= box.min.y
+  object.position.z -= center.z
 
   const maxDim = Math.max(size.x, size.y, size.z) || 100
   camera.near = maxDim * 0.001
   camera.far = maxDim * 200
   camera.position.set(maxDim * 1.2, maxDim * 0.9, maxDim * 1.8)
   camera.updateProjectionMatrix()
-  controls.target.set(0, 0, 0)
+  controls.target.set(0, size.y / 2, 0)
   controls.minDistance = maxDim * 0.05
   controls.maxDistance = maxDim * 20
   controls.update()
-
-  // Lower grid to model bottom
-  scene.children
-    .filter(c => c.isGridHelper)
-    .forEach(g => { g.position.y = -size.y / 2 })
 }
 
 async function loadModel(ext, url) {
