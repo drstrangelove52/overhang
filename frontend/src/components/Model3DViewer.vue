@@ -38,7 +38,7 @@
 
       <!-- Controls hint -->
       <div v-if="state === 'ready'"
-           class="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs text-gray-600 pointer-events-none select-none">
+           class="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs text-gray-600 pointer-events-none select-none whitespace-nowrap">
         Ziehen = Drehen &nbsp;·&nbsp; Scrollen = Zoom &nbsp;·&nbsp; Rechtsklick = Verschieben
       </div>
     </div>
@@ -62,6 +62,8 @@ const canvas = ref(null)
 const state = ref('loading')
 const errorMsg = ref('')
 
+const MAT = () => new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.55, metalness: 0.05 })
+
 let renderer, scene, camera, controls, animFrameId, resizeObs
 
 onMounted(async () => {
@@ -72,77 +74,57 @@ onMounted(async () => {
     return
   }
 
-  const w = canvas.value.clientWidth
-  const h = canvas.value.clientHeight
+  const w = canvas.value.clientWidth || 800
+  const h = canvas.value.clientHeight || 600
 
   renderer = new THREE.WebGLRenderer({ canvas: canvas.value, antialias: true })
-  renderer.setPixelRatio(window.devicePixelRatio)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(w, h)
   renderer.outputColorSpace = THREE.SRGBColorSpace
 
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0x0d1117)
 
-  // Grid floor
-  const grid = new THREE.GridHelper(300, 30, 0x222222, 0x1a1a1a)
+  const grid = new THREE.GridHelper(300, 30, 0x1e2530, 0x161b22)
   scene.add(grid)
 
-  // Lights
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6))
-  const dir1 = new THREE.DirectionalLight(0xffffff, 1.2)
-  dir1.position.set(1, 2, 1.5)
-  scene.add(dir1)
-  const dir2 = new THREE.DirectionalLight(0x8888ff, 0.4)
-  dir2.position.set(-1, -1, -1)
-  scene.add(dir2)
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7))
+  const sun = new THREE.DirectionalLight(0xffffff, 1.4)
+  sun.position.set(1, 2, 1.5)
+  scene.add(sun)
+  const fill = new THREE.DirectionalLight(0x8899cc, 0.35)
+  fill.position.set(-1, -0.5, -1)
+  scene.add(fill)
 
   camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000)
-  camera.position.set(0, 50, 150)
 
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.08
-  controls.minDistance = 1
-  controls.maxDistance = 5000
 
   try {
     const object = await loadModel(ext, props.url)
     scene.add(object)
-
-    // Center + fit camera
-    const box = new THREE.Box3().setFromObject(object)
-    const center = box.getCenter(new THREE.Vector3())
-    const size = box.getSize(new THREE.Vector3())
-    object.position.sub(center)
-    grid.position.y = -size.y / 2
-
-    const maxDim = Math.max(size.x, size.y, size.z)
-    camera.near = maxDim * 0.001
-    camera.far = maxDim * 100
-    camera.position.set(maxDim * 1.2, maxDim * 0.8, maxDim * 1.5)
-    camera.updateProjectionMatrix()
-    controls.target.set(0, 0, 0)
-    controls.update()
-
+    fitCamera(object)
     state.value = 'ready'
   } catch (e) {
-    errorMsg.value = `Fehler beim Laden: ${e.message || 'Unbekannter Fehler'}`
+    console.error('3D viewer error:', e)
+    errorMsg.value = e.message || 'Unbekannter Fehler'
     state.value = 'error'
     return
   }
 
-  // Resize
   resizeObs = new ResizeObserver(() => {
-    const w = canvas.value?.clientWidth
-    const h = canvas.value?.clientHeight
-    if (!w || !h) return
+    const el = canvas.value?.parentElement
+    if (!el) return
+    const w = el.clientWidth
+    const h = el.clientHeight
     renderer.setSize(w, h)
     camera.aspect = w / h
     camera.updateProjectionMatrix()
   })
   resizeObs.observe(canvas.value.parentElement)
 
-  // Animate
   const animate = () => {
     animFrameId = requestAnimationFrame(animate)
     controls.update()
@@ -154,41 +136,160 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   cancelAnimationFrame(animFrameId)
   resizeObs?.disconnect()
+  controls?.dispose()
   renderer?.dispose()
 })
+
+function fitCamera(object) {
+  const box = new THREE.Box3().setFromObject(object)
+  const center = box.getCenter(new THREE.Vector3())
+  const size = box.getSize(new THREE.Vector3())
+  object.position.sub(center)
+
+  const maxDim = Math.max(size.x, size.y, size.z) || 100
+  camera.near = maxDim * 0.001
+  camera.far = maxDim * 200
+  camera.position.set(maxDim * 1.2, maxDim * 0.9, maxDim * 1.8)
+  camera.updateProjectionMatrix()
+  controls.target.set(0, 0, 0)
+  controls.minDistance = maxDim * 0.05
+  controls.maxDistance = maxDim * 20
+  controls.update()
+
+  // Lower grid to model bottom
+  scene.children
+    .filter(c => c.isGridHelper)
+    .forEach(g => { g.position.y = -size.y / 2 })
+}
 
 async function loadModel(ext, url) {
   if (ext === 'stl') {
     const loader = new STLLoader()
-    const geometry = await new Promise((resolve, reject) => {
-      loader.load(url, resolve, undefined, reject)
-    })
-    const mat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.6, metalness: 0.1 })
-    return new THREE.Mesh(geometry, mat)
+    const geometry = await new Promise((resolve, reject) =>
+      loader.load(url, resolve, undefined, e => reject(new Error('STL konnte nicht geladen werden')))
+    )
+    return new THREE.Mesh(geometry, MAT())
   }
 
   if (ext === 'obj') {
     const loader = new OBJLoader()
-    const group = await new Promise((resolve, reject) => {
-      loader.load(url, resolve, undefined, reject)
-    })
-    const mat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.6, metalness: 0.1 })
-    group.traverse(child => {
-      if (child.isMesh) child.material = mat
-    })
+    const group = await new Promise((resolve, reject) =>
+      loader.load(url, resolve, undefined, e => reject(new Error('OBJ konnte nicht geladen werden')))
+    )
+    group.traverse(child => { if (child.isMesh) child.material = MAT() })
     return group
   }
 
   if (ext === '3mf') {
-    // ThreeMFLoader is loaded dynamically to avoid bundling issues
-    const { ThreeMFLoader } = await import('three/examples/jsm/loaders/3MFLoader.js')
-    const loader = new ThreeMFLoader()
-    const group = await new Promise((resolve, reject) => {
-      loader.load(url, resolve, undefined, reject)
-    })
-    return group
+    return load3MF(url)
   }
 
-  throw new Error(`Nicht unterstütztes Format: .${ext}`)
+  throw new Error(`Format .${ext} nicht unterstützt`)
+}
+
+// Custom 3MF parser — bypasses ThreeMFLoader which crashes on files
+// containing <object type="other"> (common in Bambu Studio / Printables exports).
+// 3MF is a ZIP archive containing a 3D/3dmodel.model XML file.
+async function load3MF(url) {
+  const resp = await fetch(url)
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} beim Laden der Datei`)
+  const buffer = new Uint8Array(await resp.arrayBuffer())
+
+  const { unzipSync } = await import('three/examples/jsm/libs/fflate.module.js')
+  let files
+  try {
+    files = unzipSync(buffer)
+  } catch {
+    throw new Error('3MF-Datei ist kein gültiges ZIP-Archiv')
+  }
+
+  // Locate the main model file
+  let modelBytes = files['3D/3dmodel.model']
+  if (!modelBytes) {
+    const key = Object.keys(files).find(k => k.endsWith('.model'))
+    if (key) modelBytes = files[key]
+  }
+  if (!modelBytes) throw new Error('Kein 3D-Modell in der 3MF-Datei gefunden')
+
+  const xml = new DOMParser().parseFromString(
+    new TextDecoder().decode(modelBytes), 'text/xml'
+  )
+  if (xml.querySelector('parsererror')) throw new Error('3MF XML konnte nicht geparst werden')
+
+  // Build a vertex lookup from the <resources> section
+  const objectMap = {}
+  for (const obj of xml.querySelectorAll('resources > object')) {
+    const id = obj.getAttribute('id')
+    const type = obj.getAttribute('type') || 'model'
+    if (type !== 'model') continue
+    const meshEl = obj.querySelector('mesh')
+    if (!meshEl) continue
+    objectMap[id] = meshEl
+  }
+
+  // Build THREE meshes
+  const group = new THREE.Group()
+  const mat = MAT()
+  let totalTriangles = 0
+
+  // Process build items — resolve components recursively
+  const buildItems = xml.querySelectorAll('build > item')
+  const processedIds = new Set()
+
+  function addMeshFromObject(id) {
+    if (processedIds.has(id)) return
+    processedIds.add(id)
+
+    const meshEl = objectMap[id]
+    if (!meshEl) {
+      // May be a component referencing other objects
+      const objEl = xml.querySelector(`resources > object[id="${id}"]`)
+      if (objEl) {
+        for (const comp of objEl.querySelectorAll('components > component')) {
+          addMeshFromObject(comp.getAttribute('objectid'))
+        }
+      }
+      return
+    }
+
+    const vertexEls = meshEl.querySelectorAll('vertices > vertex')
+    const triEls = meshEl.querySelectorAll('triangles > triangle')
+    if (!vertexEls.length || !triEls.length) return
+
+    const positions = new Float32Array(vertexEls.length * 3)
+    for (let i = 0; i < vertexEls.length; i++) {
+      positions[i * 3]     = parseFloat(vertexEls[i].getAttribute('x'))
+      positions[i * 3 + 1] = parseFloat(vertexEls[i].getAttribute('y'))
+      positions[i * 3 + 2] = parseFloat(vertexEls[i].getAttribute('z'))
+    }
+
+    const indices = new Uint32Array(triEls.length * 3)
+    for (let i = 0; i < triEls.length; i++) {
+      indices[i * 3]     = parseInt(triEls[i].getAttribute('v1'))
+      indices[i * 3 + 1] = parseInt(triEls[i].getAttribute('v2'))
+      indices[i * 3 + 2] = parseInt(triEls[i].getAttribute('v3'))
+    }
+
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geo.setIndex(new THREE.BufferAttribute(indices, 1))
+    geo.computeVertexNormals()
+    group.add(new THREE.Mesh(geo, mat))
+    totalTriangles += triEls.length
+  }
+
+  if (buildItems.length > 0) {
+    for (const item of buildItems) {
+      addMeshFromObject(item.getAttribute('objectid'))
+    }
+  } else {
+    // No build section — load all mesh objects directly
+    for (const id of Object.keys(objectMap)) {
+      addMeshFromObject(id)
+    }
+  }
+
+  if (totalTriangles === 0) throw new Error('Keine Geometrie in der 3MF-Datei gefunden')
+  return group
 }
 </script>
