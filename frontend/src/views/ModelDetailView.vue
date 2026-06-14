@@ -3,7 +3,7 @@
 
     <!-- Header: title + platform + meta -->
     <div class="mb-5">
-      <div class="flex items-start gap-3 mb-2">
+      <div class="flex items-start gap-3 mb-2 pr-10">
         <h1 class="text-2xl font-bold leading-tight flex-1">{{ model.title }}</h1>
         <span class="text-xs bg-gray-800 text-gray-400 px-2.5 py-1 rounded-full flex-shrink-0 mt-1">{{ platformLabel }}</span>
       </div>
