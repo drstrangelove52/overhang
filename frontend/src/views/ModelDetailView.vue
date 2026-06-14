@@ -279,7 +279,8 @@ const slicers = [
 ]
 
 function fileAbsUrl(relUrl) {
-  return window.location.origin + relUrl
+  // Use plain HTTP so slicers don't reject the self-signed certificate
+  return 'http://' + window.location.hostname + relUrl
 }
 
 onMounted(async () => {
