@@ -70,14 +70,28 @@
       </div>
     </div>
 
-    <!-- Active tag filter chip -->
-    <div v-if="filterTag" class="flex items-center gap-2 mb-4">
-      <span class="text-xs text-gray-500">Tag:</span>
-      <span class="flex items-center gap-1 text-xs bg-orange-500/20 text-orange-300 border border-orange-500/40 pl-2.5 pr-1 py-1 rounded-full">
+    <!-- Active filters row -->
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <!-- No-collection toggle -->
+      <button @click="toggleNoCollection"
+        class="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors"
+        :class="filterNoCollection
+          ? 'bg-orange-500/20 border-orange-500/60 text-orange-300'
+          : 'bg-transparent border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8"/>
+        </svg>
+        Ohne Sammlung
+      </button>
+
+      <!-- Tag filter chip -->
+      <span v-if="filterTag" class="flex items-center gap-1 text-xs bg-orange-500/20 text-orange-300 border border-orange-500/40 pl-2.5 pr-1 py-1 rounded-full">
         {{ filterTag }}
         <button @click="clearTagFilter" class="text-orange-400 hover:text-white leading-none ml-0.5">×</button>
       </span>
     </div>
+
 
     <!-- Stats -->
     <p v-if="total > 0" class="text-sm text-gray-500 mb-4">{{ total }} Modell{{ total !== 1 ? 'e' : '' }}</p>
@@ -96,7 +110,7 @@
           d="M20 7l-8-4-8 4m16 0v10l-8 4m-8-4V7m8 4v10"/>
       </svg>
       <p class="text-gray-500">
-        {{ filterTag ? `Keine Modelle mit Tag „${filterTag}".` : searchQuery ? 'Keine Modelle gefunden.' : 'Noch keine Modelle. Füge oben eine URL ein!' }}
+        {{ filterTag ? `Keine Modelle mit Tag „${filterTag}".` : filterNoCollection ? 'Alle Modelle sind bereits in einer Sammlung.' : searchQuery ? 'Keine Modelle gefunden.' : 'Noch keine Modelle. Füge oben eine URL ein!' }}
       </p>
     </div>
 
@@ -156,6 +170,7 @@ const detailId = ref(null)
 const searchQuery = ref('')
 const filterPlatform = ref('')
 const filterTag = ref('')
+const filterNoCollection = ref(false)
 const sortOrder = ref('date_desc')
 let searchTimer = null
 
@@ -262,6 +277,7 @@ async function load(reset = true) {
     platform: filterPlatform.value || undefined,
     tag: filterTag.value || undefined,
     sort: sortOrder.value !== 'date_desc' ? sortOrder.value : undefined,
+    no_collection: filterNoCollection.value || undefined,
     skip: reset ? 0 : models.value.length,
     limit: 48,
   })
@@ -295,6 +311,11 @@ function setTagFilter(tag) {
 
 function clearTagFilter() {
   filterTag.value = ''
+  load()
+}
+
+function toggleNoCollection() {
+  filterNoCollection.value = !filterNoCollection.value
   load()
 }
 

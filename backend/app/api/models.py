@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, or_, func, exists
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional
@@ -60,6 +60,7 @@ async def list_models(
     platform: Optional[str] = None,
     tag: Optional[str] = None,
     sort: Optional[str] = None,
+    no_collection: bool = False,
     skip: int = 0,
     limit: int = 48,
     db: AsyncSession = Depends(get_db),
@@ -86,6 +87,14 @@ async def list_models(
         stmt = stmt.where(Model.source_platform == platform)
     if tag:
         stmt = stmt.join(ModelTag).join(Tag).where(Tag.name == tag.lower())
+    if no_collection:
+        stmt = stmt.where(
+            ~exists().where(
+                CollectionModel.model_id == Model.id,
+                Collection.id == CollectionModel.collection_id,
+                Collection.user_id == user.id,
+            )
+        )
 
     total_stmt = select(func.count()).select_from(stmt.subquery())
     total = (await db.execute(total_stmt)).scalar()
