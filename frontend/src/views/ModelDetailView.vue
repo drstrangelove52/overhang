@@ -331,7 +331,7 @@ function onOutsideClick(e) {
 
 function refreshModelCollections() {
   modelCollections.value = allCollections.value.filter(c =>
-    c.models?.some(m => m.id === props.modelId) || false
+    c.model_ids?.includes(props.modelId) || false
   )
 }
 

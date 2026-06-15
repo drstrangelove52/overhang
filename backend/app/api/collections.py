@@ -31,12 +31,16 @@ def _col_to_dict(c: Collection, include_models: bool = False) -> dict:
         d['models'] = [_cm_to_dict(cm) for cm in items]
     else:
         previews = []
-        for cm in sorted(c.collection_models, key=lambda x: x.position)[:4]:
-            if cm.model and cm.model.files:
+        model_ids = []
+        for cm in sorted(c.collection_models, key=lambda x: x.position):
+            if cm.model:
+                model_ids.append(cm.model.id)
+            if len(previews) < 4 and cm.model and cm.model.files:
                 img = next((f for f in cm.model.files if f.is_primary_preview and f.file_type == 'image'), None)
                 if img:
                     previews.append('/api/files/' + img.storage_path)
         d['previews'] = previews
+        d['model_ids'] = model_ids
     return d
 
 
