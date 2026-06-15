@@ -121,6 +121,7 @@ async def _scrape_model_async(task, url: str, user_id: int = None) -> dict:
                 except Exception as e:
                     print(f'Datei-Download fehlgeschlagen {f.url}: {e}')
 
+        seen_tag_ids = set()
         for tag_name in scraped.tags:
             tag_name = tag_name.strip().lower()[:100]
             if not tag_name:
@@ -131,7 +132,9 @@ async def _scrape_model_async(task, url: str, user_id: int = None) -> dict:
                 tag = Tag(name=tag_name)
                 db.add(tag)
                 await db.flush()
-            db.add(ModelTag(model_id=model_id, tag_id=tag.id))
+            if tag.id not in seen_tag_ids:
+                seen_tag_ids.add(tag.id)
+                db.add(ModelTag(model_id=model_id, tag_id=tag.id))
 
         await db.commit()
 
