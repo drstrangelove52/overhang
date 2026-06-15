@@ -7,8 +7,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "mysql+aiomysql://overhang:overhang@db/
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
-    pool_pre_ping=True,   # test connection before use, reconnect if dead
-    pool_recycle=3600,    # recycle connections after 1h (before MariaDB's wait_timeout)
+    pool_recycle=3600,  # recycle connections after 1h (before MariaDB's wait_timeout)
 )
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
