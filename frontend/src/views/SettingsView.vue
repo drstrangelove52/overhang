@@ -64,7 +64,7 @@
             </button>
             <!-- Actions menu -->
             <div class="relative" v-if="u.id !== auth.userId || true">
-              <button @click="openMenu(u)" class="p-1.5 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
+              <button @click.stop="openMenu(u)" class="p-1.5 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/>
                 </svg>
