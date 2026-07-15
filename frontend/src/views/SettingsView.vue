@@ -2,6 +2,34 @@
   <div class="max-w-xl mx-auto space-y-4">
     <h2 class="text-xl font-bold mb-6">Einstellungen</h2>
 
+    <!-- My Account: Change Password -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <h3 class="font-medium mb-4">Mein Account</h3>
+      <form @submit.prevent="doChangePassword" class="space-y-3 max-w-sm">
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Aktuelles Passwort</label>
+          <input v-model="pwForm.current" type="password" required autocomplete="current-password"
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Neues Passwort</label>
+          <input v-model="pwForm.next" type="password" required autocomplete="new-password"
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+          <p class="text-xs text-gray-600 mt-1">Mindestens 8 Zeichen</p>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Neues Passwort bestätigen</label>
+          <input v-model="pwForm.confirm" type="password" required autocomplete="new-password"
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+        </div>
+        <p v-if="pwMsg" class="text-sm" :class="pwMsg.ok ? 'text-green-400' : 'text-red-400'">{{ pwMsg.text }}</p>
+        <button type="submit" :disabled="pwSaving || pwForm.next.length < 8 || pwForm.next !== pwForm.confirm"
+          class="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+          {{ pwSaving ? 'Speichere…' : 'Passwort ändern' }}
+        </button>
+      </form>
+    </div>
+
     <!-- Admin: User Management -->
     <div v-if="auth.isAdmin" class="bg-gray-900 border border-gray-800 rounded-xl p-6">
       <div class="flex items-center justify-between mb-4">
@@ -221,10 +249,35 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { saveCredential, deleteCredential, testCredential, adminListUsers, adminCreateUser, adminUpdateUser, adminDeleteUser } from '../api.js'
+import { saveCredential, deleteCredential, testCredential, adminListUsers, adminCreateUser, adminUpdateUser, adminDeleteUser, changePassword } from '../api.js'
 import { useAuthStore } from '../stores/auth.js'
 
 const auth = useAuthStore()
+
+// My account: change password
+const pwForm = reactive({ current: '', next: '', confirm: '' })
+const pwSaving = ref(false)
+const pwMsg = ref(null)
+
+async function doChangePassword() {
+  if (pwForm.next !== pwForm.confirm) {
+    pwMsg.value = { ok: false, text: 'Passwörter stimmen nicht überein' }
+    return
+  }
+  pwSaving.value = true
+  pwMsg.value = null
+  try {
+    await changePassword(pwForm.current, pwForm.next)
+    pwMsg.value = { ok: true, text: 'Passwort geändert' }
+    pwForm.current = ''
+    pwForm.next = ''
+    pwForm.confirm = ''
+  } catch (e) {
+    pwMsg.value = { ok: false, text: e.response?.data?.detail || 'Fehler beim Ändern' }
+  } finally {
+    pwSaving.value = false
+  }
+}
 
 // Admin user management
 const users = ref([])

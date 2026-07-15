@@ -80,6 +80,11 @@ export async function testCredential(_platform) {
   return r.data
 }
 
+// Auth
+export async function changePassword(currentPassword, newPassword) {
+  await api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
+}
+
 // Admin
 export async function adminListUsers() {
   const r = await api.get('/admin/users')

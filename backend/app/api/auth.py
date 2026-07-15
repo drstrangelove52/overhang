@@ -27,6 +27,11 @@ class RegisterRequest(BaseModel):
     email: str | None = None
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
@@ -123,3 +128,14 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
 @router.get('/me')
 async def me(user: User = Depends(get_current_user)):
     return {'id': user.id, 'username': user.username, 'email': user.email, 'is_admin': user.is_admin}
+
+
+@router.post('/change-password')
+async def change_password(req: ChangePasswordRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not verify_password(req.current_password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Aktuelles Passwort ist falsch')
+    if len(req.new_password) < 8:
+        raise HTTPException(400, 'Neues Passwort muss mindestens 8 Zeichen haben')
+    user.hashed_password = hash_password(req.new_password)
+    await db.commit()
+    return {'ok': True}
