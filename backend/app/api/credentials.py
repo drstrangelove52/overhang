@@ -87,19 +87,21 @@ async def test_makerworld(db: AsyncSession = Depends(get_db), _user: User = auth
     row = await _get_makerworld(db)
     if not row:
         raise HTTPException(404, 'Keine Sitzung gespeichert')
-    from app.utils.browser import makerworld_page, fetch_json
+    from app.utils.browser import makerworld_page, wait_for_cloudflare
     cookies = decrypt(row.credential_data)['cookies']
+    # MakerLab pages require a login: without a valid session MakerWorld redirects to the Bambu Lab sign-in
     try:
         async with makerworld_page(cookies) as page:
-            status, data = await fetch_json(page, 'https://makerworld.com/api/v1/design-user-service/my/preference')
+            await page.goto('https://makerworld.com/makerlab/community/fold-up-box-generator',
+                            wait_until='domcontentloaded', timeout=45000)
+            await wait_for_cloudflare(page)
+            await page.wait_for_timeout(3000)
+            url, title = page.url, await page.title()
     except Exception as e:
         return {'ok': False, 'message': f'Browser-Fehler: {e}'}
-    if status == 200 and isinstance(data, dict):
-        name = data.get('name') or data.get('handle') or ''
-        return {'ok': True, 'message': f'Sitzung gültig{f" ({name})" if name else ""}'}
-    if status in (401, 403):
-        return {'ok': False, 'message': f'Sitzung abgelaufen oder ungültig (HTTP {status})'}
-    return {'ok': False, 'message': f'Unerwartete Antwort (HTTP {status})'}
+    if 'sign-in' in url or 'bambulab.com' in url:
+        return {'ok': False, 'message': 'Sitzung abgelaufen oder ungültig — bitte Cookies neu exportieren'}
+    return {'ok': True, 'message': f'Sitzung gültig (geladen: {title})'}
 
 
 @router.post('/thingiverse/test')

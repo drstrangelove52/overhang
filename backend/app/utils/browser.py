@@ -56,7 +56,10 @@ def parse_cookies(raw: str) -> list[dict]:
 
 
 async def wait_for_cloudflare(page, timeout: int = 45000) -> None:
-    await page.wait_for_function("() => !/just a moment|nur einen moment/i.test(document.title)", timeout=timeout)
+    # fixed polling: the default (requestAnimationFrame) can stall on heavy SPA pages
+    await page.wait_for_function(
+        "() => !/just a moment|nur einen moment/i.test(document.title)", timeout=timeout, polling=500
+    )
 
 
 @asynccontextmanager
