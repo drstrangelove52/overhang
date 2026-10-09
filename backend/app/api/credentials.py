@@ -87,15 +87,12 @@ async def test_makerworld(db: AsyncSession = Depends(get_db), _user: User = auth
     row = await _get_makerworld(db)
     if not row:
         raise HTTPException(404, 'Keine Sitzung gespeichert')
-    from app.utils.browser import makerworld_page, wait_for_cloudflare
+    from app.utils.browser import makerworld_page
     cookies = decrypt(row.credential_data)['cookies']
     # MakerLab pages require a login: without a valid session MakerWorld redirects to the Bambu Lab sign-in
     try:
-        async with makerworld_page(cookies) as page:
-            await page.goto('https://makerworld.com/makerlab/community/fold-up-box-generator',
-                            wait_until='domcontentloaded', timeout=45000)
-            await wait_for_cloudflare(page)
-            await page.wait_for_timeout(3000)
+        async with makerworld_page(cookies, 'https://makerworld.com/makerlab/community/fold-up-box-generator') as page:
+            await page.wait_for_timeout(2000)
             url, title = page.url, await page.title()
     except Exception as e:
         return {'ok': False, 'message': f'Browser-Fehler: {e}'}

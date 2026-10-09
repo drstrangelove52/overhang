@@ -69,7 +69,7 @@ async def wait_for_cloudflare(page, timeout: int = 45000) -> None:
 
 
 @asynccontextmanager
-async def makerworld_page(cookies: list[dict] | None):
+async def makerworld_page(cookies: list[dict] | None, url: str = 'https://makerworld.com/en/'):
     """Headless Chromium on makerworld.com with the given session cookies, past the Cloudflare check."""
     from playwright.async_api import async_playwright
 
@@ -85,7 +85,7 @@ async def makerworld_page(cookies: list[dict] | None):
             if cookies:
                 await ctx.add_cookies(cookies)
             page = await ctx.new_page()
-            await page.goto('https://makerworld.com/en/', wait_until='domcontentloaded', timeout=45000)
+            await page.goto(url, wait_until='domcontentloaded', timeout=45000)
             await wait_for_cloudflare(page)
             yield page
         finally:
