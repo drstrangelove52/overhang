@@ -12,6 +12,7 @@
           class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400"
           @keydown.enter="startImport"
         />
+        <p class="text-gray-500 text-xs mt-2">Andere Links (z. B. MakerLab-Generatoren) werden als Lesezeichen gespeichert. Dateien kannst du danach selbst anhängen.</p>
         <p v-if="error" class="text-red-400 text-sm mt-2">{{ error }}</p>
         <div class="flex gap-3 mt-4 justify-end">
           <button @click="$emit('close')" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Abbrechen</button>

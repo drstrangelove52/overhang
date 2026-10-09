@@ -338,7 +338,7 @@ function refreshModelCollections() {
 const images = computed(() => (model.value?.files || []).filter(f => f.file_type === 'image'))
 const printFiles = computed(() => (model.value?.files || []).filter(f => f.file_type !== 'image'))
 const platformLabel = computed(() => {
-  const map = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld', cults3d: 'Cults3d' }
+  const map = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld', cults3d: 'Cults3d', makerlab: 'MakerLab', bookmark: 'Lesezeichen' }
   return map[model.value?.source_platform] || model.value?.source_platform || '?'
 })
 const availableCollections = computed(() =>

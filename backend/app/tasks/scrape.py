@@ -37,6 +37,8 @@ async def _scrape_model_async(task, url: str, user_id: int = None) -> dict:
         from app.scrapers.makerworld import scrape
     elif platform == 'cults3d':
         from app.scrapers.cults3d import scrape
+    elif platform in ('makerlab', 'bookmark'):
+        from app.scrapers.bookmark import scrape
     else:
         raise ValueError(f'Plattform nicht unterstützt: {platform} ({url})')
 

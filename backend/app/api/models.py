@@ -11,7 +11,7 @@ import os, shutil, zipfile, io, re
 from app.models.database import get_db
 from app.models.models import Model, ModelFile, Tag, ModelTag, User, Collection, CollectionModel
 from app.tasks.celery_app import celery_app
-from app.scrapers.detect import detect_platform
+from app.scrapers.detect import detect_platform, normalize_url
 from app.api.auth import get_current_user
 
 router = APIRouter(prefix='/api/models', tags=['models'])
@@ -35,9 +35,10 @@ class JobStatus(BaseModel):
 async def import_model(req: ImportRequest, db: AsyncSession = Depends(get_db), user: User = auth):
     platform = detect_platform(req.url)
     if platform == 'unknown':
-        raise HTTPException(400, 'URL nicht erkannt. Unterstützt: printables.com, thingiverse.com, makerworld.com, cults3d.com')
+        raise HTTPException(400, 'Ungültige URL. Bitte eine vollständige http(s)-URL angeben.')
 
-    existing = (await db.execute(select(Model).where(Model.source_url == req.url, Model.user_id == user.id))).scalar_one_or_none()
+    url = normalize_url(req.url, platform)
+    existing = (await db.execute(select(Model).where(Model.source_url.in_({req.url, url}), Model.user_id == user.id))).scalars().first()
     if existing:
         raise HTTPException(409, f'Bereits importiert: „{existing.title}"')
 
