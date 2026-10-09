@@ -42,6 +42,66 @@ async def delete_thingiverse(db: AsyncSession = Depends(get_db), _user: User = a
         await db.commit()
 
 
+class CookieIn(BaseModel):
+    cookies: str
+
+
+async def _get_makerworld(db: AsyncSession):
+    return (await db.execute(select(PlatformCredential).where(PlatformCredential.platform == 'makerworld'))).scalar_one_or_none()
+
+
+@router.get('/makerworld')
+async def get_makerworld(db: AsyncSession = Depends(get_db), _user: User = auth):
+    return {'configured': await _get_makerworld(db) is not None}
+
+
+@router.put('/makerworld')
+async def save_makerworld(body: CookieIn, db: AsyncSession = Depends(get_db), _user: User = auth):
+    from app.utils.browser import parse_cookies
+    try:
+        cookies = parse_cookies(body.cookies)
+    except ValueError:
+        raise HTTPException(400, 'Cookies konnten nicht gelesen werden (ungültiges JSON)')
+    if not cookies:
+        raise HTTPException(400, 'Keine Cookies für makerworld.com / bambulab.com gefunden')
+    data = encrypt({'cookies': cookies})
+    existing = await _get_makerworld(db)
+    if existing:
+        existing.credential_data = data
+    else:
+        db.add(PlatformCredential(platform='makerworld', credential_data=data))
+    await db.commit()
+    return {'ok': True, 'count': len(cookies)}
+
+
+@router.delete('/makerworld', status_code=204)
+async def delete_makerworld(db: AsyncSession = Depends(get_db), _user: User = auth):
+    row = await _get_makerworld(db)
+    if row:
+        await db.delete(row)
+        await db.commit()
+
+
+@router.post('/makerworld/test')
+async def test_makerworld(db: AsyncSession = Depends(get_db), _user: User = auth):
+    row = await _get_makerworld(db)
+    if not row:
+        raise HTTPException(404, 'Keine Sitzung gespeichert')
+    from app.utils.browser import makerworld_page, fetch_json
+    cookies = decrypt(row.credential_data)['cookies']
+    try:
+        async with makerworld_page(cookies) as page:
+            status, data = await fetch_json(page, 'https://makerworld.com/api/v1/design-user-service/my/preference')
+    except Exception as e:
+        return {'ok': False, 'message': f'Browser-Fehler: {e}'}
+    if status == 200 and isinstance(data, dict):
+        name = data.get('name') or data.get('handle') or ''
+        return {'ok': True, 'message': f'Sitzung gültig{f" ({name})" if name else ""}'}
+    if status in (401, 403):
+        return {'ok': False, 'message': f'Sitzung abgelaufen oder ungültig (HTTP {status})'}
+    return {'ok': False, 'message': f'Unerwartete Antwort (HTTP {status})'}
+
+
 @router.post('/thingiverse/test')
 async def test_thingiverse(db: AsyncSession = Depends(get_db), _user: User = auth):
     row = (await db.execute(select(PlatformCredential).where(PlatformCredential.platform == 'thingiverse'))).scalar_one_or_none()

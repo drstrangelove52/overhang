@@ -50,7 +50,7 @@ async def _scrape_model_async(task, url: str, user_id: int = None) -> dict:
     AsyncSessionLocal2 = _make_session()
     credentials = None
     async with AsyncSessionLocal2() as cdb:
-        row = (await cdb.execute(sa_select(PlatformCredential).where(PlatformCredential.platform == platform))).scalar_one_or_none()
+        row = (await cdb.execute(sa_select(PlatformCredential).where(PlatformCredential.platform == ('makerworld' if platform == 'makerlab' else platform)))).scalar_one_or_none()
         if row:
             credentials = decrypt(row.credential_data)
 

@@ -188,6 +188,40 @@
       </div>
     </div>
 
+    <!-- MakerWorld session -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="font-medium">MakerWorld Sitzung</h3>
+        <span v-if="mwConfigured" class="text-xs text-green-500">✓ Gespeichert</span>
+      </div>
+      <p class="text-sm text-gray-500 mb-4">
+        Für MakerWorld-Modelle und MakerLab-Seiten (auch mit 2FA). Logge dich einmal im Browser ein und
+        exportiere die Cookies von makerworld.com, z. B. mit einer Cookie-Editor-Erweiterung („Export als JSON“).
+        Eingefügt werden kann das JSON, ein <code class="text-orange-400">name=wert; …</code>-String oder nur das
+        <code class="text-orange-400">token</code>-Cookie. Es werden nur Cookies von makerworld.com und bambulab.com gespeichert (verschlüsselt).
+        Läuft die Sitzung ab, einfach neu einfügen.
+      </p>
+
+      <textarea v-model="mwCookies" rows="4" placeholder="Cookies einfügen…"
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-orange-400"></textarea>
+      <button @click="saveMw" :disabled="!mwCookies.trim()"
+        class="mt-2 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+        Speichern
+      </button>
+
+      <div v-if="mwResult" class="mt-3 text-sm px-3 py-2 rounded-lg"
+        :class="mwResult.ok ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'">
+        {{ mwResult.message }}
+      </div>
+
+      <div v-if="mwConfigured" class="mt-3 flex gap-3">
+        <button @click="testMw" :disabled="mwTesting" class="text-sm text-gray-400 hover:text-white disabled:opacity-50">
+          {{ mwTesting ? 'Teste (kann ~30 s dauern)…' : 'Sitzung testen' }}
+        </button>
+        <button @click="removeMw" class="text-sm text-red-500 hover:text-red-400">Entfernen</button>
+      </div>
+    </div>
+
     <!-- SSL Certificate -->
     <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
       <h3 class="font-medium mb-1">Vertrauenswürdiges Zertifikat</h3>
@@ -240,7 +274,7 @@
     <!-- Platform file download info -->
     <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-5 text-sm text-gray-500">
       <p class="font-medium text-gray-400 mb-1">MakerWorld, Printables & Cults3d</p>
-      <p>Diese Plattformen erfordern einen Account für Datei-Downloads — ein automatischer Download ist nicht möglich.
+      <p>Diese Plattformen erfordern einen Account für Datei-Downloads — ein automatischer Download von Modelldateien ist nicht möglich.
         Dateien einfach auf der jeweiligen Plattform herunterladen und per
         <span class="text-gray-300">Drag & Drop</span> ins Modell ziehen.</p>
     </div>
@@ -249,7 +283,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { saveCredential, deleteCredential, testCredential, adminListUsers, adminCreateUser, adminUpdateUser, adminDeleteUser, changePassword } from '../api.js'
+import { saveCredential, deleteCredential, testCredential, getMakerworldSession, saveMakerworldSession, deleteMakerworldSession, testMakerworldSession,adminListUsers, adminCreateUser, adminUpdateUser, adminDeleteUser, changePassword } from '../api.js'
 import { useAuthStore } from '../stores/auth.js'
 
 const auth = useAuthStore()
@@ -443,5 +477,45 @@ async function remove() {
   await deleteCredential('thingiverse')
   configured.value = false
   result.value = null
+}
+
+// MakerWorld session
+const mwCookies = ref('')
+const mwConfigured = ref(false)
+const mwTesting = ref(false)
+const mwResult = ref(null)
+
+onMounted(async () => {
+  try { mwConfigured.value = (await getMakerworldSession()).configured } catch {}
+})
+
+async function saveMw() {
+  mwResult.value = null
+  try {
+    const r = await saveMakerworldSession(mwCookies.value)
+    mwConfigured.value = true
+    mwCookies.value = ''
+    mwResult.value = { ok: true, message: `${r.count} Cookies gespeichert` }
+  } catch (e) {
+    mwResult.value = { ok: false, message: e.response?.data?.detail || 'Fehler' }
+  }
+}
+
+async function testMw() {
+  mwTesting.value = true
+  mwResult.value = null
+  try {
+    mwResult.value = await testMakerworldSession()
+  } catch (e) {
+    mwResult.value = { ok: false, message: e.response?.data?.detail || 'Fehler' }
+  } finally {
+    mwTesting.value = false
+  }
+}
+
+async function removeMw() {
+  await deleteMakerworldSession()
+  mwConfigured.value = false
+  mwResult.value = null
 }
 </script>

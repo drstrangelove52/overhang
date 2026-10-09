@@ -15,16 +15,24 @@ async def scrape(url: str, credentials: dict | None = None) -> ScrapedModel:
     if not model_id:
         raise ValueError(f"Konnte keine Modell-ID aus URL extrahieren: {url}")
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-        "Accept": "application/json",
-        "Referer": "https://makerworld.com/",
-    }
-
-    async with httpx.AsyncClient(timeout=30, headers=headers) as client:
-        resp = await client.get(f"{API_BASE}/{model_id}")
-        resp.raise_for_status()
-        d = resp.json()
+    cookies = (credentials or {}).get("cookies")
+    if cookies:
+        # Logged-in headless browser: passes Cloudflare and uses the imported session
+        from app.utils.browser import makerworld_page, fetch_json
+        async with makerworld_page(cookies) as page:
+            status, d = await fetch_json(page, f"{API_BASE}/{model_id}")
+        if status != 200 or not isinstance(d, dict):
+            raise ValueError(f"MakerWorld-API antwortete mit HTTP {status} (Sitzung abgelaufen?)")
+    else:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+            "Accept": "application/json",
+            "Referer": "https://makerworld.com/",
+        }
+        async with httpx.AsyncClient(timeout=30, headers=headers) as client:
+            resp = await client.get(f"{API_BASE}/{model_id}")
+            resp.raise_for_status()
+            d = resp.json()
 
     if not d.get("id"):
         raise ValueError(f"Modell {model_id} nicht gefunden auf MakerWorld")

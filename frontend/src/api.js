@@ -80,6 +80,20 @@ export async function testCredential(_platform) {
   return r.data
 }
 
+// MakerWorld session (imported cookies)
+export async function getMakerworldSession() {
+  return (await api.get('/credentials/makerworld')).data
+}
+export async function saveMakerworldSession(cookies) {
+  return (await api.put('/credentials/makerworld', { cookies })).data
+}
+export async function deleteMakerworldSession() {
+  await api.delete('/credentials/makerworld')
+}
+export async function testMakerworldSession() {
+  return (await api.post('/credentials/makerworld/test')).data
+}
+
 // Auth
 export async function changePassword(currentPassword, newPassword) {
   await api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
