@@ -15,10 +15,11 @@ def _title_from_url(url: str) -> str:
 
 async def _makerlab_meta(url: str, cookies: list[dict]) -> dict:
     """Best-effort OpenGraph metadata from the MakerLab page via the logged-in browser."""
-    from app.utils.browser import makerworld_page
+    from app.utils.browser import makerworld_page, wait_for_cloudflare
     async with makerworld_page(cookies) as page:
         await page.goto(url, wait_until='domcontentloaded', timeout=45000)
-        await page.wait_for_function("document.title !== 'Just a moment...'", timeout=30000)
+        await wait_for_cloudflare(page)
+        await page.wait_for_timeout(3000)  # let the SPA set its meta tags
         return await page.evaluate(
             "() => { const m = n => document.querySelector(`meta[property='${n}']`)?.content || '';"
             " return {title: m('og:title') || document.title, description: m('og:description'), image: m('og:image')} }"

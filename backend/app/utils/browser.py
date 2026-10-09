@@ -55,20 +55,29 @@ def parse_cookies(raw: str) -> list[dict]:
     return [c for c in cookies if any(d in c['domain'] for d in _ALLOWED_DOMAINS)]
 
 
+async def wait_for_cloudflare(page, timeout: int = 45000) -> None:
+    await page.wait_for_function("() => !/just a moment|nur einen moment/i.test(document.title)", timeout=timeout)
+
+
 @asynccontextmanager
 async def makerworld_page(cookies: list[dict] | None):
     """Headless Chromium on makerworld.com with the given session cookies, past the Cloudflare check."""
     from playwright.async_api import async_playwright
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(args=['--no-sandbox'])
+        # channel="chromium" = new headless mode; the old one is rejected by Cloudflare
+        browser = await pw.chromium.launch(
+            channel='chromium',
+            args=['--no-sandbox', '--disable-blink-features=AutomationControlled'],
+        )
         try:
-            ctx = await browser.new_context(user_agent=UA, locale='de-DE')
+            ctx = await browser.new_context(user_agent=UA, locale='en-US', viewport={'width': 1366, 'height': 850})
+            await ctx.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             if cookies:
                 await ctx.add_cookies(cookies)
             page = await ctx.new_page()
             await page.goto('https://makerworld.com/en/', wait_until='domcontentloaded', timeout=45000)
-            await page.wait_for_function("document.title !== 'Just a moment...'", timeout=30000)
+            await wait_for_cloudflare(page)
             yield page
         finally:
             await browser.close()
