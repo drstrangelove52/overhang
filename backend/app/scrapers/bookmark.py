@@ -42,8 +42,10 @@ async def scrape(url: str, credentials: dict | None = None) -> ScrapedModel:
         try:
             meta = await _makerlab_meta(source_url, cookies)
             title = meta.get('title') or title
-            description = meta.get('description') or ''
-            if meta.get('image'):
+            # skip the site-wide default description/image MakerWorld puts on every page
+            desc = meta.get('description') or ''
+            description = '' if desc.startswith('MakerWorld is the leading') else desc
+            if meta.get('image') and 'og-icon' not in meta['image']:
                 name = meta['image'].split('/')[-1].split('?')[0]
                 if not re.search(r'\.(jpe?g|png|webp|gif)$', name, re.I):
                     name = 'cover.jpg'
